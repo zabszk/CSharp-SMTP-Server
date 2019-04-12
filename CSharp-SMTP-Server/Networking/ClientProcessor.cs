@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using CSharp_SMTP_Server.Protocol;
 
 namespace CSharp_SMTP_Server.Networking
 {
@@ -22,6 +23,8 @@ namespace CSharp_SMTP_Server.Networking
 				Name = "Receive thread",
 				IsBackground = true
 			};
+
+			WriteText($"220 {_listener.Server.Options.ServerName} ESMTP");
 		}
 
 		public const int BufferSize = 1024;
@@ -30,8 +33,11 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly NetworkStream _stream;
 		private readonly Thread _clientThread;
 		private readonly Listener _listener;
+		private MailTransaction _transaction;
+		private StringBuilder _dataBuilder;
 		private byte[] _buffer;
 		private UTF8Encoding _encoder;
+		private bool _captureData;
 
 		private void Receive()
 		{
@@ -54,9 +60,94 @@ namespace CSharp_SMTP_Server.Networking
 			}
 		}
 
+		internal void WriteText(string text) => _stream.Write(_encoder.GetBytes(text));
+
+		internal void WriteCode(int code) => SMTPCodes.SendCode(this, code);
+
 		private void ProcessResponse(string response)
 		{
+			response = response.Trim();
 
+			if (_captureData)
+			{
+				if (response == ".")
+				{
+					_captureData = false;
+					_transaction.Body = _dataBuilder.ToString();
+
+					WriteCode(250);
+					return;
+				}
+				_dataBuilder.AppendLine(response);
+				return;
+			}
+
+			var command = response.ToUpper();
+
+			if (command.StartsWith("MAIL FROM:"))
+			{
+				var from = response.Substring(10).Trim();
+				if (!from.Contains("<") || !from.Contains(">"))
+				{
+					WriteCode(501);
+					return;
+				}
+
+				var emailFrom = from.Substring(from.IndexOf("<", StringComparison.Ordinal) + 1);
+				emailFrom = from.Substring(0, from.IndexOf(">", StringComparison.Ordinal));
+
+				if (string.IsNullOrWhiteSpace(emailFrom))
+				{
+					WriteCode(501);
+					return;
+				}
+
+				_transaction = new MailTransaction()
+				{
+					From = emailFrom
+				};
+
+				WriteCode(250);	
+			}
+			else if (command.StartsWith("RCPT TO:"))
+			{
+				if (_transaction == null)
+				{
+					WriteCode(503);
+					return;
+				}
+				var to = response.Substring(8).Trim();
+
+				if (!to.Contains("<") || !to.Contains(">"))
+				{
+					WriteCode(501);
+					return;
+				}
+
+				var emailTo = to.Substring(to.IndexOf("<", StringComparison.Ordinal) + 1);
+				emailTo = to.Substring(0, to.IndexOf(">", StringComparison.Ordinal));
+
+				if (string.IsNullOrWhiteSpace(emailTo))
+				{
+					WriteCode(501);
+					return;
+				}
+
+				_transaction.To = emailTo;
+			}
+			else if (command == "DATA")
+			{
+				if (_transaction == null || string.IsNullOrWhiteSpace(_transaction.To))
+				{
+					WriteCode(503);
+					return;
+				}
+
+				_dataBuilder = new StringBuilder();
+				_captureData = true;
+
+				WriteCode(354);
+			}
 		}
 
 		public void Dispose()

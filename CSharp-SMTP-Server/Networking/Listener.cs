@@ -15,9 +15,11 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly Thread _listenerThread;
 		private readonly IPEndPoint _ipEndPoint;
 		internal readonly List<ClientProcessor> ClientProcessors;
+		internal readonly SMTPServer Server;
 
-		public Listener(IPAddress address, ushort port)
+		internal Listener(IPAddress address, ushort port, SMTPServer s)
 		{
+			Server = s;
 			ClientProcessors = new List<ClientProcessor>();
 
 			_ipEndPoint = new IPEndPoint(address, port);
