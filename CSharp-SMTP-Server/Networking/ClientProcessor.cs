@@ -84,7 +84,27 @@ namespace CSharp_SMTP_Server.Networking
 
 			var command = response.ToUpper();
 
-			if (command.StartsWith("MAIL FROM:"))
+			if (command.StartsWith("EHLO") || command.StartsWith("HELO") || command.StartsWith("HELLO"))
+			{
+				_transaction = null;
+				WriteText($"250 {_listener.Server.Options.ServerName} at your service");
+			}
+			else if (command.StartsWith("HELP")) WriteText("250 There is no help for you");
+			else if (command.StartsWith("NOOP")) WriteCode(250);
+			else if (command.StartsWith("QUIT"))
+			{
+				WriteText($"221 {_listener.Server.Options.ServerName} Service closing transmission channel");
+				_stream.Close(200);
+				_client.Close();
+				Dispose();
+			}
+			else if (command.StartsWith("RSET"))
+			{
+				_transaction = null;
+				WriteCode(250);
+			}
+			else if (command.StartsWith("VRFY")) WriteCode(252);
+			else if (command.StartsWith("MAIL FROM:"))
 			{
 				var from = response.Substring(10).Trim();
 				if (!from.Contains("<") || !from.Contains(">"))
@@ -107,7 +127,7 @@ namespace CSharp_SMTP_Server.Networking
 					From = emailFrom
 				};
 
-				WriteCode(250);	
+				WriteCode(250);
 			}
 			else if (command.StartsWith("RCPT TO:"))
 			{
@@ -148,10 +168,12 @@ namespace CSharp_SMTP_Server.Networking
 
 				WriteCode(354);
 			}
+			else WriteCode(502);
 		}
 
 		public void Dispose()
 		{
+			_transaction = null;
 			_clientThread.Abort();
 			_client?.Dispose();
 			_stream?.Dispose();

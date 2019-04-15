@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace CSharp_SMTP_Server.Interfaces
+﻿namespace CSharp_SMTP_Server.Interfaces
 {
-	interface IMailDelivery
+	public interface IMailDelivery
 	{
+		void EmailReceived(MailTransaction transaction);
 	}
 }
