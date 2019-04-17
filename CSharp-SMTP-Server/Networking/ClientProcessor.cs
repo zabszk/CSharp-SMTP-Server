@@ -130,6 +130,25 @@ namespace CSharp_SMTP_Server.Networking
 				_tUsername = null;
 				return;
 			}
+
+			if (_captureData == 4)
+			{
+				_captureData = 0;
+
+				if (_listener.Server.AuthLogin == null)
+				{
+					WriteText("454 4.7.0  Temporary authentication failure");
+					return;
+				}
+
+				_username = AuthPlain(response.Substring(11));
+				WriteText(_username == null
+					? "535 5.7.8  Authentication credentials invalid"
+					: "235 2.7.0  Authentication Succeeded");
+
+				return;
+			}
+
 			var command = response.ToUpper();
 
 			if (command.StartsWith("EHLO"))
@@ -137,7 +156,7 @@ namespace CSharp_SMTP_Server.Networking
 				_transaction = null;
 				_protocolVersion = 1;
 				WriteText($"250 {_listener.Server.Options.ServerName} at your service");
-				if (_listener.Server.AuthLogin != null) WriteText("250-AUTH LOGIN");
+				if (_listener.Server.AuthLogin != null) WriteText("250-AUTH LOGIN PLAIN");
 				if (!_secure && _listener.Server.Certificate != null) WriteText("250-STARTTLS");
 			}
 			else if (command.StartsWith("HELO"))
@@ -165,6 +184,33 @@ namespace CSharp_SMTP_Server.Networking
 
 					_captureData = 2;
 					WriteText("334 VXNlcm5hbWU6");
+				}
+				else if (command.StartsWith("AUTH PLAIN"))
+				{
+					if (_listener.Server.AuthLogin == null)
+					{
+						WriteCode(502);
+						return;
+					}
+
+					if (_listener.Server.Options.RequireEncryptionForAuth && !_secure)
+					{
+						WriteText("538 5.7.11  Encryption required for requested authentication mechanism");
+						return;
+					}
+
+					if (command == response)
+					{
+						WriteText("334");
+						_captureData = 4;
+					}
+					else
+					{
+						_username = AuthPlain(response.Substring(11));
+						WriteText(_username == null
+							? "535 5.7.8  Authentication credentials invalid"
+							: "235 2.7.0  Authentication Succeeded");
+					}
 				}
 				else if (command.StartsWith("NOOP")) WriteCode(250);
 				else if (command.StartsWith("QUIT"))
@@ -288,6 +334,16 @@ namespace CSharp_SMTP_Server.Networking
 			
 			if (_listener != null && _listener.ClientProcessors.Contains(this))
 				_listener.ClientProcessors.Remove(this);
+		}
+
+		private string AuthPlain(string input)
+		{
+			var auth = Misc.Base64.Base64Decode(input);
+			if (!auth.Contains('\0')) return null;
+			var split = auth.Split('\0');
+			if (split.Length != 3) return null;
+			return _listener.Server.AuthLogin.AuthPlain(split[0], split[1], split[2], _client.Client.RemoteEndPoint,
+				_secure) ? split[1] : null;
 		}
 	}
 }
