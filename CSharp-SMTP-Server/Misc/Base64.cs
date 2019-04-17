@@ -13,8 +13,15 @@ namespace CSharp_SMTP_Server.Misc
 
 		internal static string Base64Decode(string base64EncodedData)
 		{
-			var base64EncodedBytes = Convert.FromBase64String(base64EncodedData);
-			return Encoding.UTF8.GetString(base64EncodedBytes);
+			try
+			{
+				var base64EncodedBytes = Convert.FromBase64String(base64EncodedData);
+				return Encoding.UTF8.GetString(base64EncodedBytes);
+			}
+			catch
+			{
+				return null;
+			}
 		}
 	}
 }

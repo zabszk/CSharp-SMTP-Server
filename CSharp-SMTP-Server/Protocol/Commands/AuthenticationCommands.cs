@@ -8,23 +8,17 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 		{
 			if (processor.Server.AuthLogin == null)
 			{
-				processor.WriteCode(502);
+				processor.WriteCode(502, "5.5.1");
 				return;
 			}
 
 			if (processor.Server.Options.RequireEncryptionForAuth && !processor.Secure)
 			{
-				processor.WriteText("538 5.7.11  Encryption required for requested authentication mechanism");
+				processor.WriteCode(538, "5.7.11");
 				return;
 			}
 
-			if (!data.Contains(" "))
-			{
-				processor.WriteCode(501);
-				return;
-			}
-
-			var args = data.Split(' ');
+			var args = data.Contains(" ") ? data.Split(' ') : new[] {data};
 
 			switch (args[0].ToUpper())
 			{
@@ -42,10 +36,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					else
 					{
 						processor.Username = AuthPlain(processor, args[1]);
-						processor.WriteText(processor.Username == null
-							? "535 5.7.8  Authentication credentials invalid"
-							: "235 2.7.0  Authentication Succeeded");
+						if (processor.Username == null)
+							processor.WriteCode(535, "5.7.8", "Authentication credentials invalid");
+						else processor.WriteCode(235, "2.7.0", "Authentication Succeeded");
 					}
+					break;
+
+				default:
+					processor.WriteCode(501, "5.7.4", "Unrecognized Authentication Method");
 					break;
 			}
 		}
@@ -65,17 +63,18 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 					if (processor.Server.AuthLogin == null)
 					{
-						processor.WriteText("454 4.7.0  Temporary authentication failure");
+						processor.WriteCode(454, "4.7.0", "Temporary authentication failure");
 						return;
 					}
 
-					if (processor.Server.AuthLogin.AuthLogin(processor.TempUsername, Misc.Base64.Base64Decode(data), processor.RemoteEndPoint, processor.Secure))
+					var decode = Misc.Base64.Base64Decode(data);
+					if (processor.TempUsername != null && decode != null && processor.Server.AuthLogin.AuthLogin(processor.TempUsername, decode, processor.RemoteEndPoint, processor.Secure))
 					{
-						processor.WriteText("235 2.7.0  Authentication Succeeded");
+						processor.WriteCode(235, "2.7.0", "Authentication Succeeded");
 						processor.Username = processor.TempUsername;
 					}
 					else
-						processor.WriteText("535 5.7.8  Authentication credentials invalid");
+						processor.WriteCode(535, "5.7.8", "Authentication credentials invalid");
 
 					processor.TempUsername = null;
 					break;
@@ -84,9 +83,9 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					processor.CaptureData = 0;
 
 					processor.Username = AuthPlain(processor, data);
-					processor.WriteText(processor.Username == null
-						? "535 5.7.8  Authentication credentials invalid"
-						: "235 2.7.0  Authentication Succeeded");
+					if (processor.Username == null)
+						processor.WriteCode(535, "5.7.8", "Authentication credentials invalid");
+					else processor.WriteCode(235, "2.7.0", "Authentication Succeeded");
 					break;
 			}
 		}
@@ -94,7 +93,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 		private static string AuthPlain(ClientProcessor processor, string input)
 		{
 			var auth = Misc.Base64.Base64Decode(input);
-			if (!auth.Contains('\0')) return null;
+			if (auth == null || !auth.Contains("\0")) return null;
 			var split = auth.Split('\0');
 			if (split.Length != 3) return null;
 			return processor.Server.AuthLogin.AuthPlain(split[0], split[1], split[2], processor.RemoteEndPoint,

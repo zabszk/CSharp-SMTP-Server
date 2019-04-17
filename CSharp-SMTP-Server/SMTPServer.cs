@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography.X509Certificates;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
@@ -6,7 +8,7 @@ using CSharp_SMTP_Server.Protocol;
 
 namespace CSharp_SMTP_Server
 {
-	public class SMTPServer
+	public class SMTPServer : IDisposable
 	{
 		public ServerOptions Options;
 
@@ -18,15 +20,17 @@ namespace CSharp_SMTP_Server
 
 		internal List<Listener> Listeners { get; private set; }
 
-		public void Start(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface) =>
-			Start(parameters, options, deliveryInterface, null);
+		public SMTPServer(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface) :
+			this(parameters, options, deliveryInterface, null){}
 
-		public void Start(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface, X509Certificate certificate)
+		public SMTPServer(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface,
+			X509Certificate certificate)
 		{
 			if (SMTPCodes.Codes == null) SMTPCodes.Init();
 
 			Options = options;
 			MailDeliveryInterface = deliveryInterface;
+			Certificate = certificate;
 
 			Listeners = new List<Listener>();
 
@@ -40,10 +44,14 @@ namespace CSharp_SMTP_Server
 			}
 		}
 
-		public void Stop()
+		public void Start() => Listeners.ForEach(listener => listener.Start());
+
+		public void Dispose()
 		{
 			foreach (var listener in Listeners)
 				listener.Dispose();
+
+			Certificate.Dispose();
 		}
 
 		public void SetAuthLogin(IAuthLogin authInterface) => AuthLogin = authInterface;

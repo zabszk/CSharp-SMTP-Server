@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -28,6 +29,7 @@ namespace CSharp_SMTP_Server.Networking
 				Name = "Receive thread",
 				IsBackground = true
 			};
+			_clientThread.Start();
 
 			if (Secure)
 			{
@@ -57,31 +59,40 @@ namespace CSharp_SMTP_Server.Networking
 		internal ushort CaptureData;
 		internal string Username, TempUsername;
 		private ushort _protocolVersion;
+		private bool _dispose;
 
 		private void Receive()
 		{
-			while (true)
+			while (!_dispose)
 			{
 				if (_client.Available == 0)
 				{
-					Thread.Sleep(2);
+					Thread.Sleep(10);
 					continue;
 				}
 
 				using (var memoryStream = new MemoryStream())
 				{
-					var bytesRead = 0;
-					while ((bytesRead = _stream.Read(_buffer, 0, BufferSize)) > 0)
+					while (_client.Available > 0)
+					{
+						var bytesRead = _stream.Read(_buffer, 0, BufferSize);
 						memoryStream.Write(_buffer, 0, bytesRead);
+					}
 
 					ProcessResponse(_encoder.GetString(memoryStream.ToArray()));
 				}
 			}
 		}
 
-		internal void WriteText(string text) => _stream.Write(_encoder.GetBytes(text));
+		internal void WriteText(string text)
+		{
+			var encoded = _encoder.GetBytes(text + "\n\r");
+			_stream.Write(encoded, 0, encoded.Length);
+		}
 
 		internal void WriteCode(ushort code) => SMTPCodes.SendCode(this, code);
+		internal void WriteCode(ushort code, string enhanced) => SMTPCodes.SendCode(this, code, enhanced);
+		internal void WriteCode(ushort code, string enhanced, string text) => SMTPCodes.SendCode(this, code, enhanced, text);
 
 		internal SMTPServer Server => _listener.Server;
 
@@ -114,7 +125,6 @@ namespace CSharp_SMTP_Server.Networking
 				data = response.Substring(command.Length).TrimStart();
 
 			if (command == "EHLO")
-			if (command == "EHLO")
 			{
 				Transaction = null;
 				_protocolVersion = 1;
@@ -133,7 +143,7 @@ namespace CSharp_SMTP_Server.Networking
 				switch (command)
 				{
 					case "HELP":
-						WriteText("250 There is no help for you");
+						WriteCode(214, "2.0.0");
 						break;
 
 					case "AUTH":
@@ -143,13 +153,13 @@ namespace CSharp_SMTP_Server.Networking
 					case "STARTTLS":
 						if (Secure)
 						{
-							WriteCode(503);
+							WriteCode(503, "5.5.1");
 							return;
 						}
 
 						if (Server.Certificate == null)
 						{
-							WriteCode(502);
+							WriteCode(502, "5.5.1");
 							return;
 						}
 
@@ -159,11 +169,11 @@ namespace CSharp_SMTP_Server.Networking
 						break;
 
 					case "NOOP":
-						WriteCode(250);
+						WriteCode(250, "2.0.0");
 						break;
 
 					case "QUIT":
-						WriteText($"221 {Server.Options.ServerName} Service closing transmission channel");
+						WriteCode(221, "2.0.0");
 						Dispose();
 						break;
 
@@ -175,21 +185,21 @@ namespace CSharp_SMTP_Server.Networking
 						break;
 
 					case "VRFY":
-						WriteCode(252);
+						WriteCode(252, "5.5.1");
 						break;
 
 					default:
-						WriteCode(502);
+						WriteCode(502, "5.5.1");
 						break;
 				}
 			}
-			else WriteCode(502);
+			else WriteCode(503, "5.5.1", "EHLO/HELO first.");
 		}
 
 		public void Dispose()
 		{
 			Transaction = null;
-			_clientThread.Abort();
+			_dispose = true;
 
 			_innerStream?.Close(200);
 			_innerStream?.Dispose();
