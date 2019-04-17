@@ -4,6 +4,10 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <Authors>Łukasz Jurczyk</Authors>
+    <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE</PackageLicenseUrl>
+    <Copyright>Łukasz Jurczyk</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

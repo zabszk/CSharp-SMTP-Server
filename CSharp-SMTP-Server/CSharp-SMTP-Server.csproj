@@ -6,6 +6,12 @@
     <Authors>Łukasz Jurczyk</Authors>
     <Company />
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Copyright>Łukasz Jurczyk</Copyright>
+    <PackageLicenseUrl>https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
+    <RepositoryType>GIT</RepositoryType>
+    <Description>SMTP Server library for C#.</Description>
   </PropertyGroup>
 
 </Project>
