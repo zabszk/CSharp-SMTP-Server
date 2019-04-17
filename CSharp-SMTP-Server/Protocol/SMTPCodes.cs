@@ -14,6 +14,7 @@ namespace CSharp_SMTP_Server.Protocol
 
 			Codes.Add(354, "Start mail input; end with <CRLF>.<CRLF>");
 
+			Codes.Add(500, "Syntax error, command unrecognized");
 			Codes.Add(501, "Syntax error in parameters or arguments");
 			Codes.Add(502, "Command not implemented");
 			Codes.Add(503, "Bad sequence of commands");
