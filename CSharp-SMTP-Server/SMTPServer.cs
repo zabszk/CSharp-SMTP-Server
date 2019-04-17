@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Security.Cryptography.X509Certificates;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Protocol;
 
@@ -10,6 +8,8 @@ namespace CSharp_SMTP_Server
 	{
 		public ServerOptions Options;
 		internal IMailDelivery MailDeliveryInterface;
+		internal IAuthLogin AuthLogin;
+		internal X509Certificate Certificate;
 
 		public void Init(IMailDelivery deliveryInterface)
 		{
@@ -17,5 +17,10 @@ namespace CSharp_SMTP_Server
 
 			MailDeliveryInterface = deliveryInterface;
 		}
+
+		public void SetAuthLogin(IAuthLogin authInterface) => AuthLogin = authInterface;
+		public void SetTLSCertificate(X509Certificate certificate) => Certificate = certificate;
+
+		internal void DeliverMessage(MailTransaction transaction) => MailDeliveryInterface.EmailReceived(transaction);
 	}
 }

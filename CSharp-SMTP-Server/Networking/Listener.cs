@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,12 +12,14 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly TcpListener _listener;
 		private readonly Thread _listenerThread;
 		private readonly IPEndPoint _ipEndPoint;
+		private readonly bool _secure;
 		internal readonly List<ClientProcessor> ClientProcessors;
 		internal readonly SMTPServer Server;
 
-		internal Listener(IPAddress address, ushort port, SMTPServer s)
+		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure)
 		{
 			Server = s;
+			_secure = secure;
 			ClientProcessors = new List<ClientProcessor>();
 
 			_ipEndPoint = new IPEndPoint(address, port);
@@ -39,7 +39,7 @@ namespace CSharp_SMTP_Server.Networking
 			while (true)
 			{
 				var client = _listener.AcceptTcpClient();
-				ClientProcessors.Add(new ClientProcessor(client, this));
+				ClientProcessors.Add(new ClientProcessor(client, this, _secure));
 			}
 		}
 

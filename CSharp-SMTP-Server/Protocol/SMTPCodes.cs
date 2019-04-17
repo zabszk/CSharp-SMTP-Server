@@ -5,7 +5,7 @@ namespace CSharp_SMTP_Server.Protocol
 {
 	public class SMTPCodes
 	{
-		public static Dictionary<int, string> Codes;
+		public static Dictionary<ushort, string> Codes;
 
 		internal static void Init()
 		{
@@ -20,6 +20,6 @@ namespace CSharp_SMTP_Server.Protocol
 			Codes.Add(550, "Requested action not taken: mailbox unavailable");
 		}
 
-		internal static void SendCode(ClientProcessor proc, int code) => proc.WriteText($"{code} {Codes[code]}");
+		internal static void SendCode(ClientProcessor proc, ushort code) => proc.WriteText($"{code} {Codes[code]}");
 	}
 }
