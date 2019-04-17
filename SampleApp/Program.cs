@@ -27,7 +27,7 @@ namespace SampleApp
 					RegularPorts = new ushort[] {25, 587},
 					TlsPorts = new ushort[] {465}
 				}
-			}, new ServerOptions(){ServerName = "Test SMTP Server", RequireEncryptionForAuth = false}, new DeliveryInterface(), new X509Certificate());
+			}, new ServerOptions(){ServerName = "Test SMTP Server", RequireEncryptionForAuth = false}, new DeliveryInterface(), new LoggerInterface());
 
 			server.SetAuthLogin(new AuthenticationInterface());
 			server.Start();

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography.X509Certificates;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
@@ -16,14 +15,16 @@ namespace CSharp_SMTP_Server
 
 		internal IAuthLogin AuthLogin { get; private set; }
 
+		internal ILogger LoggerInterface { get; private set; }
+
 		internal X509Certificate Certificate { get; private set; }
 
 		internal List<Listener> Listeners { get; private set; }
 
-		public SMTPServer(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface) :
-			this(parameters, options, deliveryInterface, null){}
+		public SMTPServer(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface, ILogger loggerInterface) :
+			this(parameters, options, deliveryInterface, loggerInterface, null){}
 
-		public SMTPServer(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface,
+		public SMTPServer(ListeningParameters[] parameters, ServerOptions options, IMailDelivery deliveryInterface, ILogger loggerInterface,
 			X509Certificate certificate)
 		{
 			if (SMTPCodes.Codes == null) SMTPCodes.Init();

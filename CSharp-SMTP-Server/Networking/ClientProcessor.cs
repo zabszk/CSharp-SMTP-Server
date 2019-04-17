@@ -29,15 +29,19 @@ namespace CSharp_SMTP_Server.Networking
 				Name = "Receive thread",
 				IsBackground = true
 			};
-			_clientThread.Start();
-
+			
 			if (Secure)
 			{
 				_stream = new SslStream(_innerStream, true);
 				((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
 			}
+			else
+			{
+				_greetSent = true;
+				WriteText($"220 {Server.Options.ServerName} ESMTP");
+			}
 
-			WriteText($"220 {Server.Options.ServerName} ESMTP");
+			_clientThread.Start();
 		}
 
 		public const ushort BufferSize = 1024;
@@ -51,6 +55,7 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly Listener _listener;
 		private byte[] _buffer;
 		private readonly UTF8Encoding _encoder;
+		private bool _greetSent;
 
 		internal MailTransaction Transaction;
 		internal StringBuilder DataBuilder;
@@ -63,6 +68,18 @@ namespace CSharp_SMTP_Server.Networking
 
 		private void Receive()
 		{
+			if (Secure)
+			{
+				while (!_dispose && !((SslStream) _stream).IsAuthenticated)
+					Thread.Sleep(5);
+
+				if (!_greetSent)
+				{
+					_greetSent = true;
+					WriteText($"220 {Server.Options.ServerName} ESMTP");
+				}
+			}
+
 			while (!_dispose)
 			{
 				if (_client.Available == 0)
@@ -71,23 +88,38 @@ namespace CSharp_SMTP_Server.Networking
 					continue;
 				}
 
-				using (var memoryStream = new MemoryStream())
+				try
 				{
-					while (_client.Available > 0)
+					using (var memoryStream = new MemoryStream())
 					{
-						var bytesRead = _stream.Read(_buffer, 0, BufferSize);
-						memoryStream.Write(_buffer, 0, bytesRead);
-					}
+						while (_client.Available > 0)
+						{
+							var bytesRead = _stream.Read(_buffer, 0, BufferSize);
+							memoryStream.Write(_buffer, 0, bytesRead);
+						}
 
-					ProcessResponse(_encoder.GetString(memoryStream.ToArray()));
+						ProcessResponse(_encoder.GetString(memoryStream.ToArray()));
+					}
+				}
+				catch (Exception e)
+				{
+					Server.LoggerInterface?.LogError("Exception: " + e.Message);
 				}
 			}
 		}
 
 		internal void WriteText(string text)
 		{
-			var encoded = _encoder.GetBytes(text + "\n\r");
-			_stream.Write(encoded, 0, encoded.Length);
+			try
+			{
+				if (!_stream.CanWrite) return;
+				var encoded = _encoder.GetBytes(text + "\n\r");
+				_stream.Write(encoded, 0, encoded.Length);
+			}
+			catch (Exception e)
+			{
+				Server.LoggerInterface?.LogError("Exception: " + e.Message);
+			}
 		}
 
 		internal void WriteCode(ushort code) => SMTPCodes.SendCode(this, code);
@@ -124,76 +156,94 @@ namespace CSharp_SMTP_Server.Networking
 			if (command.Length != response.Length)
 				data = response.Substring(command.Length).TrimStart();
 
-			if (command == "EHLO")
+			switch (command)
 			{
-				Transaction = null;
-				_protocolVersion = 1;
-				WriteText($"250 {Server.Options.ServerName} at your service");
-				if (Server.AuthLogin != null) WriteText("250-AUTH LOGIN PLAIN");
-				if (!Secure && Server.Certificate != null) WriteText("250-STARTTLS");
-			}
-			else if (command == "HELO")
-			{
-				Transaction = null;
-				_protocolVersion = 2;
-				WriteText($"250 {Server.Options.ServerName} at your service");
-			}
-			else if (_protocolVersion > 0)
-			{
-				switch (command)
-				{
-					case "HELP":
-						WriteCode(214, "2.0.0");
-						break;
+				case "EHLO":
+					Transaction = null;
+					_protocolVersion = 2;
+					WriteText($"250 {Server.Options.ServerName} at your service");
+					if (Server.AuthLogin != null) WriteText("250-AUTH LOGIN PLAIN");
+					if (!Secure && Server.Certificate != null) WriteText("250-STARTTLS");
+					break;
 
-					case "AUTH":
-						AuthenticationCommands.ProcessCommand(this, data);
-						break;
+				case "HELO":
+					Transaction = null;
+					_protocolVersion = 1;
+					WriteText($"250 {Server.Options.ServerName} at your service");
+					break;
 
-					case "STARTTLS":
-						if (Secure)
-						{
-							WriteCode(503, "5.5.1");
-							return;
-						}
+				case "STARTTLS":
+					if (Secure)
+					{
+						WriteCode(503, "5.5.1");
+						return;
+					}
 
-						if (Server.Certificate == null)
-						{
-							WriteCode(502, "5.5.1");
-							return;
-						}
-
-						_stream = new SslStream(_innerStream, true);
-						Secure = true;
-						((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
-						break;
-
-					case "NOOP":
-						WriteCode(250, "2.0.0");
-						break;
-
-					case "QUIT":
-						WriteCode(221, "2.0.0");
-						Dispose();
-						break;
-
-					case "RSET":
-					case "MAIL FROM":
-					case "RCPT TO":
-					case "DATA":
-						TransactionCommands.ProcessCommand(this, command, data);
-						break;
-
-					case "VRFY":
-						WriteCode(252, "5.5.1");
-						break;
-
-					default:
+					if (Server.Certificate == null)
+					{
 						WriteCode(502, "5.5.1");
-						break;
-				}
+						return;
+					}
+
+					//WriteCode(220, "2.0.0", "Ready for TLS");
+
+					_stream = new SslStream(_innerStream, true);
+					Secure = true;
+					((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
+					break;
+
+				case "HELP":
+					WriteCode(214, "2.0.0");
+					break;
+
+				case "AUTH":
+					if (_protocolVersion == 0)
+					{
+						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						return;
+					}
+					AuthenticationCommands.ProcessCommand(this, data);
+					break;
+
+				case "NOOP":
+					WriteCode(250, "2.0.0");
+					break;
+
+				case "QUIT":
+					WriteCode(221, "2.0.0");
+					Dispose();
+					break;
+
+				case "RSET":
+				case "MAIL FROM":
+				case "RCPT TO":
+				case "DATA":
+					if (_protocolVersion == 0)
+					{
+						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						return;
+					}
+					TransactionCommands.ProcessCommand(this, command, data);
+					break;
+
+				case "VRFY":
+					if (_protocolVersion == 0)
+					{
+						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						return;
+					}
+					WriteCode(252, "5.5.1");
+					break;
+
+				default:
+					if (_protocolVersion == 0)
+					{
+						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						return;
+					}
+					WriteCode(502, "5.5.1");
+					break;
 			}
-			else WriteCode(503, "5.5.1", "EHLO/HELO first.");
 		}
 
 		public void Dispose()
