@@ -3,6 +3,9 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>CSharp_SMTP_Server</RootNamespace>
+    <Authors>Łukasz Jurczyk</Authors>
+    <Company />
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
 </Project>
