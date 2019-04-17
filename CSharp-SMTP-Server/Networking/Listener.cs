@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace CSharp_SMTP_Server.Networking
 {
@@ -29,9 +28,8 @@ namespace CSharp_SMTP_Server.Networking
 				Name = "Listening on port " + port,
 				IsBackground = true
 			};
+			_listenerThread.Start();
 		}
-
-		internal void Start() => _listenerThread.Start();
 
 		private void Listen()
 		{
@@ -47,6 +45,9 @@ namespace CSharp_SMTP_Server.Networking
 		{
 			_listenerThread.Abort();
 			_listener.Stop();
+
+			foreach (var processor in ClientProcessors)
+				processor.Dispose();
 		}
 	}
 }

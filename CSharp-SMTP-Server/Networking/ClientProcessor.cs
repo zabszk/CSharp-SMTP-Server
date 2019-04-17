@@ -5,7 +5,6 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using CSharp_SMTP_Server.Protocol;
 using CSharp_SMTP_Server.Protocol.Commands;
 
@@ -22,7 +21,7 @@ namespace CSharp_SMTP_Server.Networking
 			_stream = _innerStream;
 			_encoder = new UTF8Encoding();
 			RemoteEndPoint = _client.Client.RemoteEndPoint;
-			Secure = secure && _listener.Server.Certificate != null;
+			Secure = secure && Server.Certificate != null;
 
 			_clientThread = new Thread(Receive)
 			{
@@ -33,10 +32,10 @@ namespace CSharp_SMTP_Server.Networking
 			if (Secure)
 			{
 				_stream = new SslStream(_innerStream, true);
-				((SslStream)_stream).AuthenticateAsServer(_listener.Server.Certificate, false, _listener.Server.Options.Protocols, true);
+				((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
 			}
 
-			WriteText($"220 {_listener.Server.Options.ServerName} ESMTP");
+			WriteText($"220 {Server.Options.ServerName} ESMTP");
 		}
 
 		public const ushort BufferSize = 1024;
@@ -114,19 +113,20 @@ namespace CSharp_SMTP_Server.Networking
 			if (command.Length != response.Length)
 				data = response.Substring(command.Length).TrimStart();
 
-			if (command.StartsWith("EHLO"))
+			if (command == "EHLO")
+			if (command == "EHLO")
 			{
 				Transaction = null;
 				_protocolVersion = 1;
-				WriteText($"250 {_listener.Server.Options.ServerName} at your service");
-				if (_listener.Server.AuthLogin != null) WriteText("250-AUTH LOGIN PLAIN");
-				if (!Secure && _listener.Server.Certificate != null) WriteText("250-STARTTLS");
+				WriteText($"250 {Server.Options.ServerName} at your service");
+				if (Server.AuthLogin != null) WriteText("250-AUTH LOGIN PLAIN");
+				if (!Secure && Server.Certificate != null) WriteText("250-STARTTLS");
 			}
-			else if (command.StartsWith("HELO"))
+			else if (command == "HELO")
 			{
 				Transaction = null;
 				_protocolVersion = 2;
-				WriteText($"250 {_listener.Server.Options.ServerName} at your service");
+				WriteText($"250 {Server.Options.ServerName} at your service");
 			}
 			else if (_protocolVersion > 0)
 			{
@@ -147,7 +147,7 @@ namespace CSharp_SMTP_Server.Networking
 							return;
 						}
 
-						if (_listener.Server.Certificate == null)
+						if (Server.Certificate == null)
 						{
 							WriteCode(502);
 							return;
@@ -155,7 +155,7 @@ namespace CSharp_SMTP_Server.Networking
 
 						_stream = new SslStream(_innerStream, true);
 						Secure = true;
-						((SslStream)_stream).AuthenticateAsServer(_listener.Server.Certificate, false, _listener.Server.Options.Protocols, true);
+						((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
 						break;
 
 					case "NOOP":
@@ -163,7 +163,7 @@ namespace CSharp_SMTP_Server.Networking
 						break;
 
 					case "QUIT":
-						WriteText($"221 {_listener.Server.Options.ServerName} Service closing transmission channel");
+						WriteText($"221 {Server.Options.ServerName} Service closing transmission channel");
 						Dispose();
 						break;
 
@@ -202,16 +202,6 @@ namespace CSharp_SMTP_Server.Networking
 			
 			if (_listener != null && _listener.ClientProcessors.Contains(this))
 				_listener.ClientProcessors.Remove(this);
-		}
-
-		private string AuthPlain(string input)
-		{
-			var auth = Misc.Base64.Base64Decode(input);
-			if (!auth.Contains('\0')) return null;
-			var split = auth.Split('\0');
-			if (split.Length != 3) return null;
-			return _listener.Server.AuthLogin.AuthPlain(split[0], split[1], split[2], _client.Client.RemoteEndPoint,
-				Secure) ? split[1] : null;
 		}
 	}
 }
