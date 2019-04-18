@@ -1,5 +1,12 @@
 language: csharp
 solution: CSharp-SMTP-Server.sln
-dotnet: 2.2.203
+dotnet: 2.2
 script:
  - dotnet restore
+deploy:
+  provider: releases
+  api_key:
+    secure: fEW8b/uR537zs4xVA/jExyTD1Hkn+7k8xUHiKsK9D0atBd2xMevG6TFF9QQR0VWlq/VfbpoOx+0LO1LpuqKgVBO7uhiTR9qvjART3WuBCmVfOkbGKLkd5KweA/Y43Opl1gKOut7W3jr3LBSIwFyVxA0Iqqpdm3AJhZid2/ip+aPj31BkKn4ogAwu6bzrEqNjxQR+SPS5R+HtrtMzTdRFDQ7g99QhCHK6ATXIm3bv+i+FF8ZQ6mckwtbZXRZcxuu1leeF9nMu/fL6YU0y0wJDKil9qdJoYGKE2jwQ9MTbMA5nEmI2AaaWvewSiPgLM4ls3yH2/nJ4z5UUcEkTdak4sIHJT1WqtxmmuHeQTR0vVfbRZ9ndVS0xv3LxeP5hogVm6xddDPY1tTWe4U65MMQZu5Zp3ZJ9+FnH1HbH6F3iCkWAIAnRMLzIxnfLt+/ww5QjfQzq6giVWtgYENtf71+qvcRCHSqu8hfwyfdQSr2QR7XdyH9WeLy0NTaxPme84fFrobjqOemG0nCKubQcb6iaJlxkskNkykzYLIySnuR5J5gGv7Tm2izq2vdxkW4EQRN343NXm50R6eJIEKJyATRGmyDUt0+mmgifNGjZnGkBEzeVtumH46xDVN+RQD0D9WsoAFBPrqjDSta5DvwvScLsbGpRVTQWsuwZi1u1tcxANoU=
+  file: "CSharp-SMTP-Server/bin/Release/netstandard2.0/CSharp-SMTP-Server.dll"
+  skip_cleanup: true
+  draft: true
