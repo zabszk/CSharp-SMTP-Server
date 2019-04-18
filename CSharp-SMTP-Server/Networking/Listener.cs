@@ -36,11 +36,26 @@ namespace CSharp_SMTP_Server.Networking
 
 		private void Listen()
 		{
-			_listener.Start(200);
-			while (!_dispose)
+			try
 			{
-				var client = _listener.AcceptTcpClient();
-				ClientProcessors.Add(new ClientProcessor(client, this, _secure));
+				_listener.Start(200);
+				while (!_dispose)
+				{
+					try
+					{
+						var client = _listener.AcceptTcpClient();
+						ClientProcessors.Add(new ClientProcessor(client, this, _secure));
+					}
+					catch (Exception e)
+					{
+						if (!_dispose)
+							Server.LoggerInterface?.LogError("[Listening inner loop] Exception: " + e.Message);
+					}
+				}
+			}
+			catch (Exception e)
+			{
+				Server.LoggerInterface?.LogError("[Listening] Exception: " + e.Message);
 			}
 		}
 

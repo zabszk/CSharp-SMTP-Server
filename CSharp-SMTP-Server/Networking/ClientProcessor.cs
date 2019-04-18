@@ -84,7 +84,7 @@ namespace CSharp_SMTP_Server.Networking
 			{
 				if (_client.Available == 0)
 				{
-					Thread.Sleep(10);
+					Thread.Sleep(5);
 					continue;
 				}
 
@@ -103,7 +103,7 @@ namespace CSharp_SMTP_Server.Networking
 				}
 				catch (Exception e)
 				{
-					Server.LoggerInterface?.LogError("Exception: " + e.Message);
+					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.Message);
 				}
 			}
 		}
@@ -113,7 +113,7 @@ namespace CSharp_SMTP_Server.Networking
 			try
 			{
 				if (!_stream.CanWrite) return;
-				var encoded = _encoder.GetBytes(text + "\n\r");
+				var encoded = _encoder.GetBytes(text + "\r\n");
 				_stream.Write(encoded, 0, encoded.Length);
 			}
 			catch (Exception e)
@@ -161,9 +161,10 @@ namespace CSharp_SMTP_Server.Networking
 				case "EHLO":
 					Transaction = null;
 					_protocolVersion = 2;
-					WriteText($"250 {Server.Options.ServerName} at your service");
+					WriteText($"250-{Server.Options.ServerName} at your service");
 					if (Server.AuthLogin != null) WriteText("250-AUTH LOGIN PLAIN");
 					if (!Secure && Server.Certificate != null) WriteText("250-STARTTLS");
+					WriteText("250 8BITMIME");
 					break;
 
 				case "HELO":
@@ -185,7 +186,7 @@ namespace CSharp_SMTP_Server.Networking
 						return;
 					}
 
-					//WriteCode(220, "2.0.0", "Ready for TLS");
+					WriteCode(220, "2.0.0", "Ready for TLS");
 
 					_stream = new SslStream(_innerStream, true);
 					Secure = true;

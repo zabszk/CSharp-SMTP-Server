@@ -13,7 +13,7 @@ namespace CSharp_SMTP_Server.Protocol
 			{
 				case "RSET":
 					processor.Transaction = null;
-					processor.WriteCode(250, "2.0.0");
+					processor.WriteCode(250, "2.1.5", "Flushed");
 					break;
 
 				case "MAIL FROM":
@@ -64,6 +64,7 @@ namespace CSharp_SMTP_Server.Protocol
 					}
 					processor.DataBuilder = new StringBuilder();
 					processor.CaptureData = 1;
+					processor.WriteCode(354);
 					break;
 			}
 		}
