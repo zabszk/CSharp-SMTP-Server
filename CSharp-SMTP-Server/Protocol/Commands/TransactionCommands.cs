@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Specialized;
 using System.Text;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Networking;
@@ -71,22 +72,27 @@ namespace CSharp_SMTP_Server.Protocol
 
 		internal static void ProcessData(ClientProcessor processor, string data)
 		{
-			if (data == ".")
+			data = data.Replace("\r", "");
+			var dta = data.Split('\n');
+			foreach (var dt in dta)
 			{
-				processor.CaptureData = 0;
-				processor.Transaction.Body = processor.DataBuilder.ToString();
-				if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
+				if (dt == ".")
+				{
+					processor.CaptureData = 0;
+					processor.Transaction.Body = processor.DataBuilder.ToString();
+					if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
 
-				var delivery = (MailTransaction) processor.Transaction.Clone();
-				Task.Run(() => processor.Server.DeliverMessage(delivery));
+					var delivery = (MailTransaction)processor.Transaction.Clone();
+					Task.Run(() => processor.Server.DeliverMessage(delivery));
 
-				processor.Transaction = null;
+					processor.Transaction = null;
 
-				processor.WriteCode(250, "2.3.0");
-				return;
+					processor.WriteCode(250, "2.3.0");
+					return;
+				}
+
+				processor.DataBuilder.AppendLine(dt);
 			}
-
-			processor.DataBuilder.AppendLine(data);
 		}
 
 		private static string ProcessAddress(string data)

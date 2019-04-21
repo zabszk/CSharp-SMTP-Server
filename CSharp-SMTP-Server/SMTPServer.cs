@@ -31,6 +31,7 @@ namespace CSharp_SMTP_Server
 
 			Options = options;
 			MailDeliveryInterface = deliveryInterface;
+			LoggerInterface = loggerInterface;
 			Certificate = certificate;
 
 			Listeners = new List<Listener>();

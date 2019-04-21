@@ -56,6 +56,7 @@ namespace CSharp_SMTP_Server.Networking
 		private byte[] _buffer;
 		private readonly UTF8Encoding _encoder;
 		private bool _greetSent;
+		private int _fails;
 
 		internal MailTransaction Transaction;
 		internal StringBuilder DataBuilder;
@@ -104,6 +105,9 @@ namespace CSharp_SMTP_Server.Networking
 				catch (Exception e)
 				{
 					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.Message);
+
+					_fails++;
+					if (_fails > 3) Dispose();
 				}
 			}
 		}
@@ -118,7 +122,10 @@ namespace CSharp_SMTP_Server.Networking
 			}
 			catch (Exception e)
 			{
-				Server.LoggerInterface?.LogError("Exception: " + e.Message);
+				Server.LoggerInterface?.LogError("[Client write] Exception: " + e.Message);
+
+				_fails++;
+				if (_fails > 3) Dispose();
 			}
 		}
 
@@ -130,8 +137,6 @@ namespace CSharp_SMTP_Server.Networking
 
 		private void ProcessResponse(string response)
 		{
-			response = response.Trim();
-
 			switch (CaptureData)
 			{
 				case 1:
@@ -141,9 +146,11 @@ namespace CSharp_SMTP_Server.Networking
 				case 2:
 				case 3:
 				case 4:
-					AuthenticationCommands.ProcessData(this, response);
+					AuthenticationCommands.ProcessData(this, response.Trim());
 					return;
 			}
+
+			response = response.Trim();
 
 			var command = string.Empty;
 			var data = string.Empty;
