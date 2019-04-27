@@ -69,5 +69,5 @@ class AuthenticationInterface : IAuthLogin
 # Generating PFX from PEM keys
 You can generate PFX from PEM certificate and PEM private key using openssl:
 ```
-openssl pkcs12 -export -in public.pem -inkey private.pem -out cert-with-key.pfx
+openssl pkcs12 -export -in public.pem -inkey private.pem -out CertWithKey.pfx
 ```
