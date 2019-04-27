@@ -16,12 +16,12 @@ namespace CSharp_SMTP_Server.Networking
 		internal ClientProcessor(TcpClient c, Listener l, bool secure)
 		{
 			_listener = l;
-			_buffer = new byte[BufferSize];
 			_client = c;
 			_innerStream = c.GetStream();
 			_stream = _innerStream;
 			_encoder = new UTF8Encoding();
 			RemoteEndPoint = _client.Client.RemoteEndPoint;
+			Encryption = ConnectionEncryption.Plaintext;
 			Secure = secure && Server.Certificate != null;
 
 			_clientThread = new Thread(Receive)
@@ -29,10 +29,11 @@ namespace CSharp_SMTP_Server.Networking
 				Name = "Receive thread",
 				IsBackground = true
 			};
-			
+
 			if (Secure)
 			{
-				_stream = new SslStream(_innerStream, true);
+				Encryption = ConnectionEncryption.Tls;
+				_stream = new SslStream(_innerStream, false);
 				((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
 			}
 			else
@@ -41,19 +42,18 @@ namespace CSharp_SMTP_Server.Networking
 				WriteText($"220 {Server.Options.ServerName} ESMTP");
 			}
 
+			_reader = new StreamReader(_stream);
 			_clientThread.Start();
 		}
-
-		public const ushort BufferSize = 1024;
 
 		internal readonly EndPoint RemoteEndPoint;
 
 		private readonly TcpClient _client;
 		private readonly NetworkStream _innerStream;
 		private Stream _stream;
+		private StreamReader _reader;
 		private readonly Thread _clientThread;
 		private readonly Listener _listener;
-		private byte[] _buffer;
 		private readonly UTF8Encoding _encoder;
 		private bool _greetSent;
 		private int _fails;
@@ -62,6 +62,7 @@ namespace CSharp_SMTP_Server.Networking
 		internal StringBuilder DataBuilder;
 
 		internal bool Secure { get; private set; }
+		internal ConnectionEncryption Encryption { get; private set; }
 		internal ushort CaptureData;
 		internal string Username, TempUsername;
 		private ushort _protocolVersion;
@@ -81,35 +82,37 @@ namespace CSharp_SMTP_Server.Networking
 				}
 			}
 
-			while (!_dispose)
+			while (!_dispose && !_reader.EndOfStream)
 			{
-				if (_client.Available == 0)
+				if (!_client.Connected)
 				{
-					Thread.Sleep(5);
-					continue;
+					Dispose();
+					break;
 				}
 
 				try
 				{
-					using (var memoryStream = new MemoryStream())
-					{
-						while (_client.Available > 0)
-						{
-							var bytesRead = _stream.Read(_buffer, 0, BufferSize);
-							memoryStream.Write(_buffer, 0, bytesRead);
-						}
-
-						ProcessResponse(_encoder.GetString(memoryStream.ToArray()));
-					}
+					ProcessResponse(_reader.ReadLine());
+				}
+				catch (ObjectDisposedException)
+				{
+					Dispose();
+					return;
 				}
 				catch (Exception e)
 				{
 					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.Message);
 
 					_fails++;
-					if (_fails > 3) Dispose();
+
+					if (_fails <= 3) continue;
+					Dispose();
+					return;
 				}
 			}
+
+			if (!_dispose)
+				Dispose();
 		}
 
 		internal void WriteText(string text)
@@ -152,7 +155,7 @@ namespace CSharp_SMTP_Server.Networking
 
 			response = response.Trim();
 
-			var command = string.Empty;
+			string command;
 			var data = string.Empty;
 
 			if (response.Contains(":")) command = response.Substring(0, response.IndexOf(":", StringComparison.Ordinal)).ToUpper().TrimEnd();
@@ -195,9 +198,11 @@ namespace CSharp_SMTP_Server.Networking
 
 					WriteCode(220, "2.0.0", "Ready for TLS");
 
-					_stream = new SslStream(_innerStream, true);
+					_stream = new SslStream(_innerStream, false);
 					Secure = true;
+					Encryption = ConnectionEncryption.StartTls;
 					((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
+					_reader = new StreamReader(_stream);
 					break;
 
 				case "HELP":
@@ -256,14 +261,19 @@ namespace CSharp_SMTP_Server.Networking
 
 		public void Dispose()
 		{
+			if (_dispose) return;
+
 			Transaction = null;
 			_dispose = true;
 
-			_innerStream?.Close(200);
-			_innerStream?.Dispose();
+			_reader?.Close();
+			_reader?.Dispose();
 
 			_stream?.Close();
 			_stream?.Dispose();
+
+			_innerStream?.Close();
+			_innerStream?.Dispose();
 
 			_client?.Close();
 			_client?.Dispose();

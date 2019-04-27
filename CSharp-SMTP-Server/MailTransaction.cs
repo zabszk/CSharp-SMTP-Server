@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using CSharp_SMTP_Server.Networking;
 
 namespace CSharp_SMTP_Server
 {
@@ -18,6 +19,8 @@ namespace CSharp_SMTP_Server
 
 		public EndPoint RemoteEndPoint;
 		public string AuthenticatedUser;
+
+		public ConnectionEncryption Encryption;
 
 		public object Clone()
 		{

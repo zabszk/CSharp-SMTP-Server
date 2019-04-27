@@ -26,7 +26,8 @@ namespace CSharp_SMTP_Server.Protocol
 							processor.Transaction = new MailTransaction()
 							{
 								From = address,
-								RemoteEndPoint = processor.RemoteEndPoint
+								RemoteEndPoint = processor.RemoteEndPoint,
+								Encryption = processor.Encryption
 							};
 							processor.WriteCode(250, "2.0.0");
 						}
