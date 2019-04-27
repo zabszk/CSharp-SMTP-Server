@@ -12,6 +12,7 @@
     <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
     <RepositoryType>GIT</RepositoryType>
     <Description>SMTP Server library for C#.</Description>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
 </Project>

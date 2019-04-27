@@ -30,6 +30,8 @@ var server = new SMTPServer(new[]
     TlsPorts = new ushort[] {465}
   }
 }, new ServerOptions(){ServerName = "Test SMTP Server", RequireEncryptionForAuth = false}, new DeliveryInterface(), new LoggerInterface());
+//with TLS:
+//}, new ServerOptions() { ServerName = "Test SMTP Server", RequireEncryptionForAuth = true}, new DeliveryInterface(), new LoggerInterface(), new X509Certificate2("PathToCertWithKey.pfx"));
 
 server.SetAuthLogin(new AuthenticationInterface());
 server.Start();
@@ -62,4 +64,10 @@ class AuthenticationInterface : IAuthLogin
   public bool AuthLogin(string login, string password, EndPoint remoteEndPoint, bool secureConnection) =>
     password == "123";
 }
+```
+
+# Generating PFX from PEM keys
+You can generate PFX from PEM certificate and PEM private key using openssl:
+```
+openssl pkcs12 -export -in public.pem -inkey private.pem -out cert-with-key.pfx
 ```
