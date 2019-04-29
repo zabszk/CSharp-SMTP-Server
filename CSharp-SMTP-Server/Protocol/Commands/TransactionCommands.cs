@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Text;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Networking;
+using CSharp_SMTP_Server.Protocol.Responses;
 
 namespace CSharp_SMTP_Server.Protocol
 {
@@ -23,6 +24,21 @@ namespace CSharp_SMTP_Server.Protocol
 						if (address == null) processor.WriteCode(501, "5.5.2");
 						else
 						{
+							if (processor.Server.Filter != null)
+							{
+								var result = processor.Server.Filter.IsAllowedSender(address, processor.RemoteEndPoint);
+
+								if (result.Type != SmtpResultType.Success)
+								{
+									processor.WriteCode(554,
+										result.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
+										string.IsNullOrWhiteSpace(result.FailMessage)
+											? "Delivery not authorized, message refused"
+											: result.FailMessage);
+									return;
+								}
+							}
+
 							processor.Transaction = new MailTransaction()
 							{
 								From = address,
@@ -46,14 +62,50 @@ namespace CSharp_SMTP_Server.Protocol
 						if (address == null) processor.WriteCode(501);
 						else
 						{
-							if (!processor.Server.MailDeliveryInterface.UserExists(address))
+							if (processor.Server.Filter != null)
 							{
-								processor.WriteCode(550, "5.1.1");
-								return;
+								var filterResult = processor.Server.Filter.CanDeliver(processor.Transaction.From,address, !string.IsNullOrEmpty(processor.Username), processor.Username, processor.RemoteEndPoint);
+
+								if (filterResult.Type != SmtpResultType.Success)
+								{
+									processor.WriteCode(554,
+										filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
+										string.IsNullOrWhiteSpace(filterResult.FailMessage)
+											? "Delivery not authorized, message refused"
+											: filterResult.FailMessage);
+									return;
+								}
 							}
 
-							processor.Transaction.To.Add(address);
-							processor.WriteCode(250, "2.2.0");
+							var result = processor.Server.MailDeliveryInterface.DoesUserExist(address);
+
+							switch (result)
+							{
+								case UserExistsCodes.BadDestinationMailboxAddress:
+									processor.WriteCode(550, "5.1.1", "Requested action not taken: Bad destination mailbox address");
+									return;
+
+								case UserExistsCodes.BadDestinationSystemAddress:
+									processor.WriteCode(550, "5.1.2", "Requested action not taken: Bad destination system address");
+									return;
+
+								case UserExistsCodes.DestinationMailboxAddressAmbiguous:
+									processor.WriteCode(550, "5.1.4", "Requested action not taken: Destination mailbox address ambiguous");
+									return;
+
+								case UserExistsCodes.DestinationAddressHasMovedAndNoForwardingAddress:
+									processor.WriteCode(550, "5.1.6", "Requested action not taken: Destination mailbox has moved, No forwarding address");
+									return;
+
+								case UserExistsCodes.BadSendersSystemAddress:
+									processor.WriteCode(550, "5.1.8", "Requested action not taken: Bad sender's mailbox address syntax");
+									return;
+
+								default:
+									processor.Transaction.To.Add(address);
+									processor.WriteCode(250, "2.1.5");
+									break;
+							}	
 						}
 					}
 					break;
@@ -84,9 +136,24 @@ namespace CSharp_SMTP_Server.Protocol
 					if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
 
 					var delivery = (MailTransaction)processor.Transaction.Clone();
-					Task.Run(() => processor.Server.DeliverMessage(delivery));
-
 					processor.Transaction = null;
+
+					if (processor.Server.Filter != null)
+					{
+						var filterResult = processor.Server.Filter.CanProcessTransaction(delivery);
+
+						if (filterResult.Type != SmtpResultType.Success)
+						{
+							processor.WriteCode(554,
+								filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
+								string.IsNullOrWhiteSpace(filterResult.FailMessage)
+									? "Delivery not authorized, message refused"
+									: filterResult.FailMessage);
+							return;
+						}
+					}
+
+					Task.Run(() => processor.Server.DeliverMessage(delivery));
 
 					processor.WriteCode(250, "2.3.0");
 					return;

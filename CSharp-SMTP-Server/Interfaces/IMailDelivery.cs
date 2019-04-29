@@ -1,9 +1,11 @@
-﻿namespace CSharp_SMTP_Server.Interfaces
+﻿using CSharp_SMTP_Server.Protocol.Responses;
+
+namespace CSharp_SMTP_Server.Interfaces
 {
 	public interface IMailDelivery
 	{
 		void EmailReceived(MailTransaction transaction);
 
-		bool UserExists(string emailAddress);
+		UserExistsCodes DoesUserExist(string emailAddress);
 	}
 }

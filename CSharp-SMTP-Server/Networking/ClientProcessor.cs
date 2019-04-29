@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using CSharp_SMTP_Server.Protocol;
 using CSharp_SMTP_Server.Protocol.Commands;
+using CSharp_SMTP_Server.Protocol.Responses;
 
 namespace CSharp_SMTP_Server.Networking
 {
@@ -37,12 +38,10 @@ namespace CSharp_SMTP_Server.Networking
 				((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
 			}
 			else
-			{
-				_greetSent = true;
-				WriteText($"220 {Server.Options.ServerName} ESMTP");
-			}
+				Greet();
 
-			_reader = new StreamReader(_stream);
+			if (!_dispose)
+				_reader = new StreamReader(_stream);
 			_clientThread.Start();
 		}
 
@@ -68,6 +67,29 @@ namespace CSharp_SMTP_Server.Networking
 		private ushort _protocolVersion;
 		private bool _dispose;
 
+		private void Greet()
+		{
+			if (Server.Filter != null)
+			{
+				var filterResult = Server.Filter.IsConnectionAllowed(RemoteEndPoint);
+
+				if (filterResult.Type != SmtpResultType.Success)
+				{
+					WriteCode(550,
+						filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
+						string.IsNullOrWhiteSpace(filterResult.FailMessage)
+							? "Delivery not authorized, connection refused"
+							: filterResult.FailMessage);
+
+					Dispose();
+					return;
+				}
+			}
+
+			_greetSent = true;
+			WriteText($"220 {Server.Options.ServerName} ESMTP");
+		}
+
 		private void Receive()
 		{
 			if (Secure)
@@ -76,11 +98,10 @@ namespace CSharp_SMTP_Server.Networking
 					Thread.Sleep(5);
 
 				if (!_greetSent)
-				{
-					_greetSent = true;
-					WriteText($"220 {Server.Options.ServerName} ESMTP");
-				}
+					Greet();
 			}
+
+			if (!_greetSent) return;
 
 			while (!_dispose && !_reader.EndOfStream)
 			{
@@ -101,7 +122,7 @@ namespace CSharp_SMTP_Server.Networking
 				}
 				catch (Exception e)
 				{
-					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.Message);
+					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.GetType().FullName + ", " + e.Message);
 
 					_fails++;
 
@@ -140,6 +161,8 @@ namespace CSharp_SMTP_Server.Networking
 
 		private void ProcessResponse(string response)
 		{
+			if (!_greetSent) return;
+
 			switch (CaptureData)
 			{
 				case 1:

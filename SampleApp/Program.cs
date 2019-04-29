@@ -30,8 +30,9 @@ namespace SampleApp
 			}, new ServerOptions(){ServerName = "Test SMTP Server", RequireEncryptionForAuth = false}, new DeliveryInterface(), new LoggerInterface());
 			//with TLS:
 			//}, new ServerOptions() { ServerName = "Test SMTP Server", RequireEncryptionForAuth = true}, new DeliveryInterface(), new LoggerInterface(), new X509Certificate2("PathToCertWithKey.pfx"));
-
+			
 			server.SetAuthLogin(new AuthenticationInterface());
+			server.SetFilter(new FilterInterface());
 			server.Start();
 
 			Console.WriteLine("Server is running. Type \"exit\" to stop and exit.");

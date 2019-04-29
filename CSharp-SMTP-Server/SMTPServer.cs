@@ -14,6 +14,7 @@ namespace CSharp_SMTP_Server
 		internal IMailDelivery MailDeliveryInterface { get; private set; }
 
 		internal IAuthLogin AuthLogin { get; private set; }
+		internal IMailFilter Filter { get; private set; }
 
 		internal ILogger LoggerInterface { get; private set; }
 
@@ -57,6 +58,8 @@ namespace CSharp_SMTP_Server
 		}
 
 		public void SetAuthLogin(IAuthLogin authInterface) => AuthLogin = authInterface;
+
+		public void SetFilter(IMailFilter mailFilter) => Filter = mailFilter;
 
 		public void SetTLSCertificate(X509Certificate certificate) => Certificate = certificate;
 
