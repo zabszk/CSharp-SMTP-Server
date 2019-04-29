@@ -89,8 +89,7 @@ class FilterInterface : IMailFilter
 	public SmtpResult CanDeliver(string source, string destination, bool authenticated, string username,
 		EndPoint ep) => destination.TrimStart().StartsWith("root@")
 		? new SmtpResult(SmtpResultType.PermanentFail)
-		: new
-			SmtpResult(SmtpResultType.Success);
+		: new SmtpResult(SmtpResultType.Success);
 
 	//Let's blacklist word "spam"
 	public SmtpResult CanProcessTransaction(MailTransaction transaction) => transaction.Body.ToLower().Contains("spam")
