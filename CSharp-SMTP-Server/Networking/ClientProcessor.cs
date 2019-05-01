@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -59,6 +58,7 @@ namespace CSharp_SMTP_Server.Networking
 
 		internal MailTransaction Transaction;
 		internal StringBuilder DataBuilder;
+        internal ulong Counter;
 
 		internal bool Secure { get; private set; }
 		internal ConnectionEncryption Encryption { get; private set; }

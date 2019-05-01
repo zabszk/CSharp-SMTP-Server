@@ -5,14 +5,29 @@
     <RootNamespace>CSharp_SMTP_Server</RootNamespace>
     <Authors>Łukasz Jurczyk</Authors>
     <Company />
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Copyright>Łukasz Jurczyk</Copyright>
-    <PackageLicenseUrl>https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
     <RepositoryType>GIT</RepositoryType>
     <Description>SMTP Server library for C#.</Description>
-    <Version>1.0.2</Version>
+    <Version>1.0.2.1</Version>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <SignAssembly>false</SignAssembly>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageLicenseExpression></PackageLicenseExpression>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>D:\Visual Studio\CSharp-SMTP-Server\CSharp-SMTP-Server\CSharp-SMTP-Server.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>

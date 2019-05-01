@@ -18,6 +18,10 @@ namespace CSharp_SMTP_Server
 		public string Body;
 
 		public EndPoint RemoteEndPoint;
+
+		/// <summary>
+		/// Username of authenticated users. Empty if user is not authenticated.
+		/// </summary>
 		public string AuthenticatedUser;
 
 		public ConnectionEncryption Encryption;

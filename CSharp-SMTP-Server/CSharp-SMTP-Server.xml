@@ -1,0 +1,278 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>CSharp-SMTP-Server</name>
+    </assembly>
+    <members>
+        <member name="T:CSharp_SMTP_Server.Interfaces.IAuthLogin">
+            <summary>
+            Interface for handling authentication.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IAuthLogin.AuthPlain(System.String,System.String,System.String,System.Net.EndPoint,System.Boolean)">
+            <summary>
+            Handles "AUTH PLAIN" authentication.
+            </summary>
+            <param name="authorizationIdentity">Authorization identity</param>
+            <param name="authenticationIdentity">Authentication identity</param>
+            <param name="password">Password</param>
+            <param name="remoteEndPoint">Remote endpoint of the connection</param>
+            <param name="secureConnection">Is connection encrypted</param>
+            <returns>True if authentication was successful, false otherwise.</returns>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IAuthLogin.AuthLogin(System.String,System.String,System.Net.EndPoint,System.Boolean)">
+            <summary>
+            Handles "AUTH LOGIN" authentication.
+            </summary>
+            <param name="login">Username</param>
+            <param name="password">Password</param>
+            <param name="remoteEndPoint">Remote endpoint of the connection</param>
+            <param name="secureConnection">Is connection encrypted</param>
+            <returns>True if authentication was successful, false otherwise.</returns>
+        </member>
+        <member name="T:CSharp_SMTP_Server.Interfaces.ILogger">
+            <summary>
+            Interface for handling server errors.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.ILogger.LogError(System.String)">
+            <summary>
+            Called when error occurs.
+            </summary>
+            <param name="text">Error content</param>
+        </member>
+        <member name="T:CSharp_SMTP_Server.Interfaces.IMailDelivery">
+            <summary>
+            Interface handling emails delivery.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IMailDelivery.EmailReceived(CSharp_SMTP_Server.MailTransaction)">
+            <summary>
+            Called when email transaction has been finished.
+            </summary>
+            <param name="transaction">Finished transaction.</param>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IMailDelivery.DoesUserExist(System.String)">
+            <summary>
+            Called when new recipient is being added.
+            </summary>
+            <param name="emailAddress">Email address being added as recipient.</param>
+            <returns>Is email address valid recipient or not.</returns>
+        </member>
+        <member name="T:CSharp_SMTP_Server.Interfaces.IMailFilter">
+            <summary>
+            Interface for handling emails filtering.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IMailFilter.IsConnectionAllowed(System.Net.EndPoint)">
+            <summary>
+            Called when new connection has been established.
+            </summary>
+            <param name="ep">Remote endpoint of the connection</param>
+            <returns></returns>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IMailFilter.IsAllowedSender(System.String,System.Net.EndPoint)">
+            <summary>
+            Called when client sets \"From\" address.
+            </summary>
+            <param name="source">\"From\" value</param>
+            <param name="ep">Remote endpoint of the connection</param>
+            <returns></returns>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IMailFilter.CanDeliver(System.String,System.String,System.Boolean,System.String,System.Net.EndPoint)">
+            <summary>
+            Called when client adds a recipient.
+            </summary>
+            <param name="source">\"From\" value</param>
+            <param name="destination">Recipient being added</param>
+            <param name="authenticated">User authentication status</param>
+            <param name="username">Username (if authenticated)</param>
+            <param name="ep">Remote endpoint of the connection</param>
+            <returns></returns>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Interfaces.IMailFilter.CanProcessTransaction(CSharp_SMTP_Server.MailTransaction)">
+            <summary>
+            Called when client finishes the mail transaction.
+            </summary>
+            <param name="transaction">Transaction being just finished.</param>
+            <returns></returns>
+        </member>
+        <member name="F:CSharp_SMTP_Server.MailTransaction.AuthenticatedUser">
+            <summary>
+            Username of authenticated users. Empty if user is not authenticated.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Networking.ConnectionEncryption.Plaintext">
+            <summary>
+            No encryption
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Networking.ConnectionEncryption.StartTls">
+            <summary>
+            StartTLS encryption
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Networking.ConnectionEncryption.Tls">
+            <summary>
+            Connected to encrypted port
+            </summary>
+        </member>
+        <member name="T:CSharp_SMTP_Server.Networking.ListeningParameters">
+            <summary>
+            Parameters of the listener.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Networking.ListeningParameters.IpAddress">
+            <summary>
+            Binding IP address.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Networking.ListeningParameters.RegularPorts">
+            <summary>
+            Port of non-encrypted ports. Client can use StartTLS on that ports, if certificate is provided.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Networking.ListeningParameters.TlsPorts">
+            <summary>
+            Port numbers that always uses encryption
+            </summary>
+        </member>
+        <member name="T:CSharp_SMTP_Server.Protocol.Responses.SmtpResult">
+            <summary>
+            Smtp operation result.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Protocol.Responses.SmtpResult.#ctor(CSharp_SMTP_Server.Protocol.Responses.SmtpResultType)">
+            <summary>
+            Initializes new instance.
+            </summary>
+            <param name="type">Response type.</param>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Protocol.Responses.SmtpResult.#ctor(CSharp_SMTP_Server.Protocol.Responses.SmtpResultType,System.String)">
+            <summary>
+            Initializes new instance.
+            </summary>
+            <param name="type">Response type.</param>
+            <param name="failMessage">Custom message. Ignored if type is set to Success.</param>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Protocol.Responses.SmtpResult.Type">
+            <summary>
+            Response type.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Protocol.Responses.SmtpResult.FailMessage">
+            <summary>
+            Custom message.
+            Ignored if Type is set to Success.
+            </summary>
+        </member>
+        <member name="T:CSharp_SMTP_Server.Protocol.Responses.SmtpResultType">
+            <summary>
+            Type of SMTP result
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Protocol.Responses.SmtpResultType.Success">
+            <summary>
+            Operation was successful.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Protocol.Responses.SmtpResultType.TemporaryFail">
+            <summary>
+            Operation failed, client should retry later.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.Protocol.Responses.SmtpResultType.PermanentFail">
+            <summary>
+            Operation failed and will always fail (eg. invalid address email, limit exceeded). Client should not retry.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.ServerOptions.ServerName">
+            <summary>
+            Server name, sent on connection
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.ServerOptions.RequireEncryptionForAuth">
+            <summary>
+            Requirement of using encryption to authenticate
+            Default: true
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.ServerOptions.Protocols">
+            <summary>
+            Allowed SSL/TLS protocols.
+            Default: TLS 1.2
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.ServerOptions.MessageCharactersLimit">
+            <summary>
+            Message characters limit.
+            Set to 0 to disable the limit.
+            Default: 10 485 760
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.ServerOptions.RecipientsLimit">
+            <summary>
+            Recipients limit per message.
+            Set to 0 to disable.
+            Default: 50
+            </summary>
+        </member>
+        <member name="T:CSharp_SMTP_Server.SMTPServer">
+            <summary>
+            Instance of the SMTP server.
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.SMTPServer.Options">
+            <summary>
+            Server options.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.#ctor(System.Collections.Generic.IEnumerable{CSharp_SMTP_Server.Networking.ListeningParameters},CSharp_SMTP_Server.ServerOptions,CSharp_SMTP_Server.Interfaces.IMailDelivery,CSharp_SMTP_Server.Interfaces.ILogger)">
+            <summary>
+            Initializes the instance of SMTP server without TLS certificate.
+            </summary>
+            <param name="parameters">Listening parameters</param>
+            <param name="options">Server options</param>
+            <param name="deliveryInterface">Interface used for email delivery.</param>
+            <param name="loggerInterface">Interface used for logging server errors.</param>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.#ctor(System.Collections.Generic.IEnumerable{CSharp_SMTP_Server.Networking.ListeningParameters},CSharp_SMTP_Server.ServerOptions,CSharp_SMTP_Server.Interfaces.IMailDelivery,CSharp_SMTP_Server.Interfaces.ILogger,System.Security.Cryptography.X509Certificates.X509Certificate)">
+            <summary>
+            Initializes the instance of SMTP server with TLS certificate.
+            </summary>
+            <param name="parameters">Listening parameters</param>
+            <param name="options">Server options</param>
+            <param name="deliveryInterface">Interface used for email delivery.</param>
+            <param name="loggerInterface">Interface used for logging server errors.</param>
+            <param name="certificate">TLS certificate of the server.</param>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.Start">
+            <summary>
+            Starts the server.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.Dispose">
+            <summary>
+            Stops and disposes the server.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.SetAuthLogin(CSharp_SMTP_Server.Interfaces.IAuthLogin)">
+            <summary>
+            Sets the interface used for authentication. Enables authentication if not null.
+            </summary>
+            <param name="authInterface"></param>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.SetFilter(CSharp_SMTP_Server.Interfaces.IMailFilter)">
+            <summary>
+            Sets the email filter.
+            </summary>
+            <param name="mailFilter">Filter instance.</param>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.SetTLSCertificate(System.Security.Cryptography.X509Certificates.X509Certificate)">
+            <summary>
+            Sets the TLS certificate of the server.
+            </summary>
+            <param name="certificate">Certificate used by the server</param>
+        </member>
+    </members>
+</doc>

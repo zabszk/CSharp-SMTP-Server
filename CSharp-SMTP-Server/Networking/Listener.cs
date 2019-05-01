@@ -6,25 +6,24 @@ using System.Threading;
 
 namespace CSharp_SMTP_Server.Networking
 {
-	public class Listener : IDisposable
+	internal class Listener : IDisposable
 	{
 		internal readonly List<ClientProcessor> ClientProcessors;
 		internal readonly SMTPServer Server;
 
 		private readonly TcpListener _listener;
 		private readonly Thread _listenerThread;
-		private readonly IPEndPoint _ipEndPoint;
-		private readonly bool _secure;
+        private readonly bool _secure;
 		private bool _dispose;
 
 		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure)
 		{
-			Server = s;
+            Server = s;
 			_secure = secure;
 			ClientProcessors = new List<ClientProcessor>();
 
-			_ipEndPoint = new IPEndPoint(address, port);
-			_listener = new TcpListener(_ipEndPoint);
+			var ipEndPoint = new IPEndPoint(address, port);
+			_listener = new TcpListener(ipEndPoint);
 			_listenerThread = new Thread(Listen)
 			{
 				Name = "Listening on port " + port,

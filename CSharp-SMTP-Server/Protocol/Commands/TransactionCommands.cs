@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Specialized;
 using System.Text;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Networking;
@@ -15,7 +14,7 @@ namespace CSharp_SMTP_Server.Protocol
 			{
 				case "RSET":
 					processor.Transaction = null;
-					processor.WriteCode(250, "2.1.5", "Flushed");
+                    processor.WriteCode(250, "2.1.5", "Flushed");
 					break;
 
 				case "MAIL FROM":
@@ -62,13 +61,19 @@ namespace CSharp_SMTP_Server.Protocol
 						if (address == null) processor.WriteCode(501);
 						else
 						{
+                            if (processor.Server.Options.RecipientsLimit > 0 && processor.Server.Options.RecipientsLimit <= processor.Transaction.To.Count)
+                            {
+                                processor.WriteCode(550, "5.5.3", "Too many recipients");
+                                return;
+                            }
+
 							if (processor.Server.Filter != null)
 							{
 								var filterResult = processor.Server.Filter.CanDeliver(processor.Transaction.From,address, !string.IsNullOrEmpty(processor.Username), processor.Username, processor.RemoteEndPoint);
 
 								if (filterResult.Type != SmtpResultType.Success)
 								{
-									processor.WriteCode(554,
+									processor.WriteCode(550,
 										filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(filterResult.FailMessage)
 											? "Delivery not authorized, message refused"
@@ -116,8 +121,10 @@ namespace CSharp_SMTP_Server.Protocol
 						processor.WriteCode(503, "5.5.1", "RCPT TO first.");
 						return;
 					}
+
 					processor.DataBuilder = new StringBuilder();
-					processor.CaptureData = 1;
+                    processor.Counter = 0;
+                    processor.CaptureData = 1;
 					processor.WriteCode(354);
 					break;
 			}
@@ -133,18 +140,25 @@ namespace CSharp_SMTP_Server.Protocol
 				{
 					processor.CaptureData = 0;
 					processor.Transaction.Body = processor.DataBuilder.ToString();
-					if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
 
-					var delivery = (MailTransaction)processor.Transaction.Clone();
-					processor.Transaction = null;
+                    if (processor.Server.Options.MessageCharactersLimit != 0 &&
+                        processor.Server.Options.MessageCharactersLimit < processor.Counter)
+                    {
+                        processor.Transaction = null;
+                        processor.WriteCode(552, "5.4.3", "Message size exceeds the administrative limit.");
+                        return;
+                    }
+
+                    if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
 
 					if (processor.Server.Filter != null)
 					{
-						var filterResult = processor.Server.Filter.CanProcessTransaction(delivery);
+						var filterResult = processor.Server.Filter.CanProcessTransaction(processor.Transaction);
 
 						if (filterResult.Type != SmtpResultType.Success)
 						{
-							processor.WriteCode(554,
+                            processor.Transaction = null;
+                            processor.WriteCode(554,
 								filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 								string.IsNullOrWhiteSpace(filterResult.FailMessage)
 									? "Delivery not authorized, message refused"
@@ -153,14 +167,22 @@ namespace CSharp_SMTP_Server.Protocol
 						}
 					}
 
-					Task.Run(() => processor.Server.DeliverMessage(delivery));
+                    var delivery = (MailTransaction)processor.Transaction.Clone();
+                    processor.Transaction = null;
+
+                    Task.Run(() => processor.Server.DeliverMessage(delivery));
 
 					processor.WriteCode(250, "2.3.0");
 					return;
 				}
 
-				processor.DataBuilder.AppendLine(dt);
-			}
+                processor.Counter += (ulong)dt.Length;
+                if (processor.Server.Options.MessageCharactersLimit == 0 ||
+                    processor.Server.Options.MessageCharactersLimit >= processor.Counter)
+                {
+                    processor.DataBuilder.AppendLine(dt);
+                }
+            }
 		}
 
 		private static string ProcessAddress(string data)

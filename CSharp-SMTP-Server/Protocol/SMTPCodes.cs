@@ -3,9 +3,9 @@ using CSharp_SMTP_Server.Networking;
 
 namespace CSharp_SMTP_Server.Protocol
 {
-	public class SMTPCodes
+	internal class SMTPCodes
 	{
-		public static Dictionary<ushort, string> Codes;
+		internal static Dictionary<ushort, string> Codes;
 
 		internal static void Init()
 		{
