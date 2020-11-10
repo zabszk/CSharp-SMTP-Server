@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using CSharp_SMTP_Server.Misc;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol.Responses;
 
@@ -61,7 +63,7 @@ namespace CSharp_SMTP_Server.Protocol
 						if (address == null) processor.WriteCode(501);
 						else
 						{
-                            if (processor.Server.Options.RecipientsLimit > 0 && processor.Server.Options.RecipientsLimit <= processor.Transaction.To.Count)
+                            if (processor.Server.Options.RecipientsLimit > 0 && processor.Server.Options.RecipientsLimit <= processor.Transaction.DeliverTo.Count)
                             {
                                 processor.WriteCode(550, "5.5.3", "Too many recipients");
                                 return;
@@ -107,7 +109,7 @@ namespace CSharp_SMTP_Server.Protocol
 									return;
 
 								default:
-									processor.Transaction.To.Add(address);
+									processor.Transaction.DeliverTo.Add(address);
 									processor.WriteCode(250, "2.1.5");
 									break;
 							}	
@@ -116,7 +118,7 @@ namespace CSharp_SMTP_Server.Protocol
 					break;
 
 				case "DATA":
-					if (processor.Transaction == null || processor.Transaction.To.Count == 0)
+					if (processor.Transaction == null || processor.Transaction.DeliverTo.Count == 0)
 					{
 						processor.WriteCode(503, "5.5.1", "RCPT TO first.");
 						return;
@@ -150,8 +152,9 @@ namespace CSharp_SMTP_Server.Protocol
                     }
 
                     if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
+                    processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.Body);
 
-					if (processor.Server.Filter != null)
+                    if (processor.Server.Filter != null)
 					{
 						var filterResult = processor.Server.Filter.CanProcessTransaction(processor.Transaction);
 

@@ -10,7 +10,7 @@ namespace SampleApp
 	{
 		//Let's just print all emails
 		public void EmailReceived(MailTransaction transaction) => Console.WriteLine(
-			$"\n\n--- EMAIL TRANSACTION ---\nSource IP: {transaction.RemoteEndPoint}\nAuthenticated: {transaction.AuthenticatedUser ?? "(not authenticated)"}\nFrom: {transaction.From}\nTo: {transaction.To.Aggregate((current, item) => current + ", " + item)}\nBody: {transaction.Body}\n--- END OF TRANSACTION ---\n\n");
+			$"\n\n--- EMAIL TRANSACTION ---\nSource IP: {transaction.RemoteEndPoint}\nAuthenticated: {transaction.AuthenticatedUser ?? "(not authenticated)"}\nFrom: {transaction.From}\nTo (Commands): {transaction.DeliverTo.Aggregate((current, item) => current + ", " + item)}\nTo (Headers): {transaction.To.Aggregate((current, item) => current + ", " + item)}\nCc: {transaction.Cc.Aggregate((current, item) => current + ", " + item)}\nBcc: {transaction.Bcc.Aggregate((current, item) => current + ", " + item)}\nBody: {transaction.Body}\n--- END OF TRANSACTION ---\n\n");
 
 		//We only own "@smtp.demo" and we don't want any emails to other domains
 		public UserExistsCodes DoesUserExist(string emailAddress) => emailAddress.EndsWith("@smtp.demo")
