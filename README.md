@@ -76,8 +76,7 @@ class FilterInterface : IMailFilter
 	//Let's block .invalid TLD. You can do here eg. SPF validation
 	public Task<SmtpResult> IsAllowedSender(string source, EndPoint ep) => Task.FromResult(source.TrimEnd().EndsWith(".invalid")
 		? new SmtpResult(SmtpResultType.PermanentFail)
-		: new
-			SmtpResult(SmtpResultType.Success));
+		: new SmtpResult(SmtpResultType.Success));
 
 	//Let's block all emails to root at any domain
 	public Task<SmtpResult> CanDeliver(string source, string destination, bool authenticated, string username,
