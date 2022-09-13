@@ -2,22 +2,22 @@
 using System.Collections.Generic;
 using System.Net;
 using CSharp_SMTP_Server.Networking;
-using CSharp_SMTP_Server.Protocol;
 
 namespace CSharp_SMTP_Server
 {
 	public class MailTransaction : ICloneable
 	{
-		public MailTransaction()
+		public MailTransaction(string from)
 		{
+			From = from;
 			DeliverTo = new List<string>();
 			AuthenticatedUser = null;
 		}
 
-		public string From;
-		public string Body;
+		public readonly string From;
+		public string? Body;
 
-		public string Subject => Headers != null && Headers.TryGetValue("Subject", out var value) ? value : null;
+		public string? Subject => Headers != null && Headers.TryGetValue("Subject", out var value) ? value : null;
 
 		/// <summary>
 		/// Recipients specified in the transaction.
@@ -25,7 +25,7 @@ namespace CSharp_SMTP_Server
 		public List<string> DeliverTo;
 		
 		/// <summary>
-		/// Recipients specified in the header.
+		/// Recipients specified in the header (To).
 		/// </summary>
 		public IEnumerable<string> To => ParseAddresses("To");
 		
@@ -43,35 +43,34 @@ namespace CSharp_SMTP_Server
 		{
 			if (Headers == null || !Headers.TryGetValue(header, out var t)) yield break;
 			
-			while (t.Contains("<"))
+			while (t.Contains('<', StringComparison.Ordinal))
 			{
-				if (!t.Contains(">")) yield break;
-				var address = t.Substring(t.IndexOf("<", StringComparison.Ordinal) + 1);
+				if (!t.Contains('>', StringComparison.Ordinal)) yield break;
+				var address = t[(t.IndexOf("<", StringComparison.Ordinal) + 1)..];
 				var i = address.IndexOf(">", StringComparison.Ordinal);
-				yield return address.Substring(0, i);
+				yield return address[..i];
 				if (i + 1 >= t.Length) yield break;
 				t = t.Substring(i + 1);
 			}
 		}
 
-		public Dictionary<string, string> Headers;
+		public Dictionary<string, string>? Headers;
 		
-		public EndPoint RemoteEndPoint;
+		public EndPoint? RemoteEndPoint;
 
 		/// <summary>
 		/// Username of authenticated users. Empty if user is not authenticated.
 		/// </summary>
-		public string AuthenticatedUser;
+		public string? AuthenticatedUser;
 
 		public ConnectionEncryption Encryption;
 
 		public object Clone()
 		{
-			return new MailTransaction()
+			return new MailTransaction(From)
 			{
 				AuthenticatedUser = AuthenticatedUser,
 				Body = Body,
-				From = From,
 				Headers = Headers,
 				RemoteEndPoint = RemoteEndPoint,
 				DeliverTo = DeliverTo

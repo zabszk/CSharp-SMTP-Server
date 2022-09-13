@@ -11,7 +11,7 @@ namespace CSharp_SMTP_Server.Misc
 			return Convert.ToBase64String(plainTextBytes);
 		}
 
-		internal static string Base64Decode(string base64EncodedData)
+		internal static string? Base64Decode(string base64EncodedData)
 		{
 			try
 			{

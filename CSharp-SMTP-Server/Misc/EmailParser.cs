@@ -20,13 +20,13 @@ namespace CSharp_SMTP_Server.Misc
             var split = message.Split('\n');
             for (var i = 0; i < split.Length; i++)
             {
-                if (!split[i].Contains(":")) break;
+                if (!split[i].Contains(':', StringComparison.Ordinal)) break;
                 var s = split[i].TrimEnd('\r').Split(':');
-                if (!s[1].StartsWith(" ")) continue;
+                if (!s[1].StartsWith(" ", StringComparison.Ordinal)) continue;
                 var content = s[1];
                 for (var j = i + 1; j < split.Length; j++)
                 {
-                    if (split[j].Contains(":"))
+                    if (split[j].Contains(':', StringComparison.Ordinal))
                         break;
                     var tr = split[j].TrimEnd('\r');
                     if (tr.Length > 0 && char.IsWhiteSpace(tr[0]))

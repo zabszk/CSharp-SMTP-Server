@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Threading.Tasks;
 using CSharp_SMTP_Server.Protocol.Responses;
 
 namespace CSharp_SMTP_Server.Interfaces
@@ -13,7 +14,7 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// </summary>
 		/// <param name="ep">Remote endpoint of the connection</param>
 		/// <returns></returns>
-		SmtpResult IsConnectionAllowed(EndPoint ep);
+		Task<SmtpResult> IsConnectionAllowed(EndPoint? ep);
 
 		/// <summary>
 		/// Called when client sets \"From\" address.
@@ -21,7 +22,7 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// <param name="source">\"From\" value</param>
 		/// <param name="ep">Remote endpoint of the connection</param>
 		/// <returns></returns>
-		SmtpResult IsAllowedSender(string source, EndPoint ep);
+		Task<SmtpResult> IsAllowedSender(string source, EndPoint? ep);
 
 		/// <summary>
 		/// Called when client adds a recipient.
@@ -32,13 +33,13 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// <param name="username">Username (if authenticated)</param>
 		/// <param name="ep">Remote endpoint of the connection</param>
 		/// <returns></returns>
-		SmtpResult CanDeliver(string source, string destination, bool authenticated, string username, EndPoint ep);
+		Task<SmtpResult> CanDeliver(string source, string destination, bool authenticated, string? username, EndPoint? ep);
 
 		/// <summary>
 		/// Called when client finishes the mail transaction.
 		/// </summary>
 		/// <param name="transaction">Transaction being just finished.</param>
 		/// <returns></returns>
-		SmtpResult CanProcessTransaction(MailTransaction transaction);
+		Task<SmtpResult> CanProcessTransaction(MailTransaction transaction);
 	}
 }

@@ -7,7 +7,7 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// Server name, sent on connection
 		/// </summary>
-		public string ServerName;
+		public string ServerName = "CSharp SMTP Server";
 
 		/// <summary>
 		/// Requirement of using encryption to authenticate

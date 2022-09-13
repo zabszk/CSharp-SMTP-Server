@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using CSharp_SMTP_Server.Protocol;
 using CSharp_SMTP_Server.Protocol.Commands;
 using CSharp_SMTP_Server.Protocol.Responses;
@@ -15,6 +17,7 @@ namespace CSharp_SMTP_Server.Networking
 	{
 		internal ClientProcessor(TcpClient c, Listener l, bool secure)
 		{
+			_t = _ts.Token;
 			_listener = l;
 			_client = c;
 			_innerStream = c.GetStream();
@@ -23,59 +26,61 @@ namespace CSharp_SMTP_Server.Networking
 			RemoteEndPoint = _client.Client.RemoteEndPoint;
 			Encryption = ConnectionEncryption.Plaintext;
 			Secure = secure && Server.Certificate != null;
-
-			_clientThread = new Thread(Receive)
-			{
-				Name = "Receive thread",
-				IsBackground = true
-			};
-
-			if (Secure)
-			{
-				Encryption = ConnectionEncryption.Tls;
-				_stream = new SslStream(_innerStream, false);
-				((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
-			}
-			else
-				Greet();
-
-			if (!_dispose)
-				_reader = new StreamReader(_stream);
-			_clientThread.Start();
+			
+			Init();
 		}
 
-		internal readonly EndPoint RemoteEndPoint;
+		private readonly CancellationTokenSource _ts = new();
+		private readonly CancellationToken _t;
+		
+		internal readonly EndPoint? RemoteEndPoint;
 
 		private readonly TcpClient _client;
 		private readonly NetworkStream _innerStream;
 		private Stream _stream;
-		private StreamReader _reader;
-		private readonly Thread _clientThread;
+		private StreamReader? _reader;
 		private readonly Listener _listener;
 		private readonly UTF8Encoding _encoder;
 		private bool _greetSent;
 		private int _fails;
 
-		internal MailTransaction Transaction;
-		internal StringBuilder DataBuilder;
+		internal MailTransaction? Transaction;
+		internal StringBuilder? DataBuilder;
         internal ulong Counter;
 
 		internal bool Secure { get; private set; }
 		internal ConnectionEncryption Encryption { get; private set; }
 		internal ushort CaptureData;
-		internal string Username, TempUsername;
+		internal string? Username, TempUsername;
 		private ushort _protocolVersion;
 		private bool _dispose;
 
-		private void Greet()
+		private async void Init()
+		{
+			if (Secure)
+			{
+				Encryption = ConnectionEncryption.Tls;
+				_stream = new SslStream(_innerStream, false);
+				await ((SslStream)_stream).AuthenticateAsServerAsync(Server.Certificate!, false, Server.Options.Protocols, true);
+			}
+			else
+				await Greet();
+			
+			if (!_dispose)
+				_reader = new StreamReader(_stream);
+
+			_ = Receive();
+		}
+
+		private async Task Greet()
 		{
 			if (Server.Filter != null)
 			{
-				var filterResult = Server.Filter.IsConnectionAllowed(RemoteEndPoint);
+				var filterResult = await Server.Filter.IsConnectionAllowed(RemoteEndPoint);
 
 				if (filterResult.Type != SmtpResultType.Success)
 				{
-					WriteCode(550,
+					await WriteCode(550,
 						filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 						string.IsNullOrWhiteSpace(filterResult.FailMessage)
 							? "Delivery not authorized, connection refused"
@@ -87,38 +92,37 @@ namespace CSharp_SMTP_Server.Networking
 			}
 
 			_greetSent = true;
-			WriteText($"220 {Server.Options.ServerName} ESMTP");
+			await WriteText($"220 {Server.Options.ServerName} ESMTP");
 		}
 
-		private void Receive()
+		private async Task Receive()
 		{
 			if (Secure)
 			{
-				while (!_dispose && !((SslStream) _stream).IsAuthenticated)
-					Thread.Sleep(5);
+				while (!_t.IsCancellationRequested && !((SslStream)_stream).IsAuthenticated)
+					await Task.Delay(5, _t);
 
 				if (!_greetSent)
-					Greet();
+					await Greet();
 			}
 
-			if (!_greetSent) return;
+			if (!_greetSent)
+				return;
 
-			while (!_dispose && !_reader.EndOfStream)
+			while (!_t.IsCancellationRequested && !_reader!.EndOfStream && _client.Connected && _stream.CanRead)
 			{
-				if (!_client.Connected)
-				{
-					Dispose();
-					break;
-				}
-
 				try
 				{
-					ProcessResponse(_reader.ReadLine());
+					var read = await _reader.ReadLineAsync();
+
+					if (read == null)
+						continue;
+					
+					await ProcessResponse(read);
 				}
 				catch (ObjectDisposedException)
 				{
-					Dispose();
-					return;
+					break;
 				}
 				catch (Exception e)
 				{
@@ -127,8 +131,7 @@ namespace CSharp_SMTP_Server.Networking
 					_fails++;
 
 					if (_fails <= 3) continue;
-					Dispose();
-					return;
+					break;
 				}
 			}
 
@@ -136,13 +139,13 @@ namespace CSharp_SMTP_Server.Networking
 				Dispose();
 		}
 
-		internal void WriteText(string text)
+		internal async Task WriteText(string text)
 		{
 			try
 			{
 				if (!_stream.CanWrite) return;
 				var encoded = _encoder.GetBytes(text + "\r\n");
-				_stream.Write(encoded, 0, encoded.Length);
+				await _stream.WriteAsync(encoded);
 			}
 			catch (Exception e)
 			{
@@ -153,26 +156,27 @@ namespace CSharp_SMTP_Server.Networking
 			}
 		}
 
-		internal void WriteCode(ushort code) => SMTPCodes.SendCode(this, code);
-		internal void WriteCode(ushort code, string enhanced) => SMTPCodes.SendCode(this, code, enhanced);
-		internal void WriteCode(ushort code, string enhanced, string text) => SMTPCodes.SendCode(this, code, enhanced, text);
+		internal async Task WriteCode(ushort code) => await SMTPCodes.SendCode(this, code);
+		internal async Task WriteCode(ushort code, string enhanced) => await SMTPCodes.SendCode(this, code, enhanced);
+		internal async Task WriteCode(ushort code, string enhanced, string text) => await SMTPCodes.SendCode(this, code, enhanced, text);
 
 		internal SMTPServer Server => _listener.Server;
 
-		private void ProcessResponse(string response)
+		private async Task ProcessResponse(string response)
 		{
-			if (!_greetSent) return;
+			if (!_greetSent)
+				return;
 
 			switch (CaptureData)
 			{
 				case 1:
-					TransactionCommands.ProcessData(this, response);
+					await TransactionCommands.ProcessData(this, response);
 					return;
 
 				case 2:
 				case 3:
 				case 4:
-					AuthenticationCommands.ProcessData(this, response.Trim());
+					await AuthenticationCommands.ProcessData(this, response.Trim());
 					return;
 			}
 
@@ -181,72 +185,72 @@ namespace CSharp_SMTP_Server.Networking
 			string command;
 			var data = string.Empty;
 
-			if (response.Contains(":")) command = response.Substring(0, response.IndexOf(":", StringComparison.Ordinal)).ToUpper().TrimEnd();
-			else if (response.Contains(" "))
-				command = response.Substring(0, response.IndexOf(" ", StringComparison.Ordinal)).ToUpper().TrimEnd();
-			else command = response.ToUpper();
+			if (response.Contains(':', StringComparison.Ordinal)) command = response[..response.IndexOf(":", StringComparison.Ordinal)].ToUpper().TrimEnd();
+			else if (response.Contains(' ', StringComparison.Ordinal))
+				command = response[..response.IndexOf(" ", StringComparison.Ordinal)].ToUpper(CultureInfo.InvariantCulture).TrimEnd();
+			else command = response.ToUpper(CultureInfo.InvariantCulture);
 
 			if (command.Length != response.Length)
-				data = response.Substring(command.Length).TrimStart();
+				data = response[command.Length..].TrimStart();
 
 			switch (command)
 			{
 				case "EHLO":
 					Transaction = null;
 					_protocolVersion = 2;
-					WriteText($"250-{Server.Options.ServerName} at your service");
-					if (Server.AuthLogin != null) WriteText("250-AUTH LOGIN PLAIN");
-					if (!Secure && Server.Certificate != null) WriteText("250-STARTTLS");
-					WriteText("250 8BITMIME");
+					await WriteText($"250-{Server.Options.ServerName} at your service");
+					if (Server.AuthLogin != null) await WriteText("250-AUTH LOGIN PLAIN");
+					if (!Secure && Server.Certificate != null) await WriteText("250-STARTTLS");
+					await WriteText("250 8BITMIME");
 					break;
 
 				case "HELO":
 					Transaction = null;
 					_protocolVersion = 1;
-					WriteText($"250 {Server.Options.ServerName} at your service");
+					await WriteText($"250 {Server.Options.ServerName} at your service");
 					break;
 
 				case "STARTTLS":
 					if (Secure)
 					{
-						WriteCode(503, "5.5.1");
+						await WriteCode(503, "5.5.1");
 						return;
 					}
 
 					if (Server.Certificate == null)
 					{
-						WriteCode(502, "5.5.1");
+						await WriteCode(502, "5.5.1");
 						return;
 					}
 
-					WriteCode(220, "2.0.0", "Ready for TLS");
+					await WriteCode(220, "2.0.0", "Ready for TLS");
 
 					_stream = new SslStream(_innerStream, false);
 					Secure = true;
 					Encryption = ConnectionEncryption.StartTls;
-					((SslStream)_stream).AuthenticateAsServer(Server.Certificate, false, Server.Options.Protocols, true);
+					await ((SslStream)_stream).AuthenticateAsServerAsync(Server.Certificate, false, Server.Options.Protocols, true);
 					_reader = new StreamReader(_stream);
 					break;
 
 				case "HELP":
-					WriteCode(214, "2.0.0");
+					await WriteCode(214, "2.0.0");
 					break;
 
 				case "AUTH":
 					if (_protocolVersion == 0)
 					{
-						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						await WriteCode(503, "5.5.1", "EHLO/HELO first.");
 						return;
 					}
-					AuthenticationCommands.ProcessCommand(this, data);
+					await AuthenticationCommands.ProcessCommand(this, data);
 					break;
 
 				case "NOOP":
-					WriteCode(250, "2.0.0");
+					await WriteCode(250, "2.0.0");
 					break;
 
 				case "QUIT":
-					WriteCode(221, "2.0.0");
+					await WriteCode(221, "2.0.0");
 					Dispose();
 					break;
 
@@ -256,28 +260,28 @@ namespace CSharp_SMTP_Server.Networking
 				case "DATA":
 					if (_protocolVersion == 0)
 					{
-						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						await WriteCode(503, "5.5.1", "EHLO/HELO first.");
 						return;
 					}
-					TransactionCommands.ProcessCommand(this, command, data);
+					await TransactionCommands.ProcessCommand(this, command, data);
 					break;
 
 				case "VRFY":
 					if (_protocolVersion == 0)
 					{
-						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						await WriteCode(503, "5.5.1", "EHLO/HELO first.");
 						return;
 					}
-					WriteCode(252, "5.5.1");
+					await WriteCode(252, "5.5.1");
 					break;
 
 				default:
 					if (_protocolVersion == 0)
 					{
-						WriteCode(503, "5.5.1", "EHLO/HELO first.");
+						await WriteCode(503, "5.5.1", "EHLO/HELO first.");
 						return;
 					}
-					WriteCode(502, "5.5.1");
+					await WriteCode(502, "5.5.1");
 					break;
 			}
 		}
@@ -285,23 +289,25 @@ namespace CSharp_SMTP_Server.Networking
 		public void Dispose()
 		{
 			if (_dispose) return;
+			_dispose = true;
+			
+			_ts.Cancel();
 
 			Transaction = null;
-			_dispose = true;
 
 			_reader?.Close();
 			_reader?.Dispose();
 
-			_stream?.Close();
-			_stream?.Dispose();
+			_stream.Close();
+			_stream.Dispose();
 
-			_innerStream?.Close();
-			_innerStream?.Dispose();
+			_innerStream.Close();
+			_innerStream.Dispose();
 
-			_client?.Close();
-			_client?.Dispose();
+			_client.Close();
+			_client.Dispose();
 			
-			if (_listener != null && _listener.ClientProcessors.Contains(this))
+			if (_listener.ClientProcessors.Contains(this))
 				_listener.ClientProcessors.Remove(this);
 		}
 	}

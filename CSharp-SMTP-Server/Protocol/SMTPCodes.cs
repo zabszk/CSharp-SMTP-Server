@@ -1,13 +1,14 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using CSharp_SMTP_Server.Networking;
 
 namespace CSharp_SMTP_Server.Protocol
 {
 	internal class SMTPCodes
 	{
-		internal static Dictionary<ushort, string> Codes;
+		private static readonly Dictionary<ushort, string> Codes;
 
-		internal static void Init()
+		static SMTPCodes()
 		{
 			Codes = new Dictionary<ushort, string>
 			{
@@ -25,12 +26,12 @@ namespace CSharp_SMTP_Server.Protocol
 			};
 		}
 
-		internal static void SendCode(ClientProcessor proc, ushort code) => proc.WriteText($"{code} {Codes[code]}");
+		internal static async Task SendCode(ClientProcessor proc, ushort code) => await proc.WriteText($"{code} {Codes[code]}");
 
-		internal static void SendCode(ClientProcessor proc, ushort code, string enhanced) =>
-			proc.WriteText($"{code} {enhanced}  {Codes[code]}");
+		internal static async Task SendCode(ClientProcessor proc, ushort code, string enhanced) =>
+			await proc.WriteText($"{code} {enhanced}  {Codes[code]}");
 
-		internal static void SendCode(ClientProcessor proc, ushort code, string enhanced, string text) =>
-			proc.WriteText($"{code} {enhanced}  {text}");
+		internal static async Task SendCode(ClientProcessor proc, ushort code, string enhanced, string text) =>
+			await proc.WriteText($"{code} {enhanced}  {text}");
 	}
 }

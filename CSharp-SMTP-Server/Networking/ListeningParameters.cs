@@ -7,17 +7,26 @@ namespace CSharp_SMTP_Server.Networking
 	/// </summary>
 	public class ListeningParameters
 	{
+		public ListeningParameters(IPAddress ipAddress, ushort[]? regularPorts, ushort[]? tlsPorts)
+		{
+			IpAddress = ipAddress;
+			RegularPorts = regularPorts;
+			TlsPorts = tlsPorts;
+		}
+		
 		/// <summary>
 		/// Binding IP address.
 		/// </summary>
-		public IPAddress IpAddress;
+		public readonly IPAddress IpAddress;
+		
 		/// <summary>
 		/// Port of non-encrypted ports. Client can use StartTLS on that ports, if certificate is provided.
 		/// </summary>
-		public ushort[] RegularPorts;
+		public readonly ushort[]? RegularPorts;
+		
 		/// <summary>
-		/// Port numbers that always uses encryption
+		/// Port numbers that always uses TLS
 		/// </summary>
-		public ushort[] TlsPorts;
+		public readonly ushort[]? TlsPorts;
 	}
 }

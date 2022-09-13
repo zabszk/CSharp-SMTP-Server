@@ -18,7 +18,7 @@ namespace CSharp_SMTP_Server.Networking
 
 		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure)
 		{
-            Server = s;
+			Server = s;
 			_secure = secure;
 			ClientProcessors = new List<ClientProcessor>();
 
@@ -61,6 +61,7 @@ namespace CSharp_SMTP_Server.Networking
 		public void Dispose()
 		{
 			_dispose = true;
+			
 			_listener.Stop();
 
 			foreach (var processor in ClientProcessors)

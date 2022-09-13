@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Threading.Tasks;
 
 namespace CSharp_SMTP_Server.Interfaces
 {
@@ -16,7 +17,7 @@ namespace CSharp_SMTP_Server.Interfaces
         /// <param name="remoteEndPoint">Remote endpoint of the connection</param>
         /// <param name="secureConnection">Is connection encrypted</param>
         /// <returns>True if authentication was successful, false otherwise.</returns>
-        bool AuthPlain(string authorizationIdentity, string authenticationIdentity, string password, EndPoint remoteEndPoint,
+        Task<bool> AuthPlain(string authorizationIdentity, string authenticationIdentity, string password, EndPoint? remoteEndPoint,
 			bool secureConnection);
 
 		/// <summary>
@@ -27,6 +28,6 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// <param name="remoteEndPoint">Remote endpoint of the connection</param>
 		/// <param name="secureConnection">Is connection encrypted</param>
 		/// <returns>True if authentication was successful, false otherwise.</returns>
-		bool AuthLogin(string login, string password, EndPoint remoteEndPoint, bool secureConnection);
+		Task<bool> AuthLogin(string login, string password, EndPoint? remoteEndPoint, bool secureConnection);
 	}
 }

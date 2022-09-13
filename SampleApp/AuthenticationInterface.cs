@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Threading.Tasks;
 using CSharp_SMTP_Server.Interfaces;
 
 namespace SampleApp
@@ -7,11 +8,11 @@ namespace SampleApp
 	{
 		//123 is password for all users (NOT SECURE, ONLY FOR DEMO PURPOSES!)
 
-		public bool AuthPlain(string authorizationIdentity, string authenticationIdentity, string password,
+		public Task<bool> AuthPlain(string authorizationIdentity, string authenticationIdentity, string password,
 			EndPoint remoteEndPoint,
-			bool secureConnection) => password == "123";
+			bool secureConnection) => Task.FromResult(password == "123");
 
-		public bool AuthLogin(string login, string password, EndPoint remoteEndPoint, bool secureConnection) =>
-			password == "123";
+		public Task<bool> AuthLogin(string login, string password, EndPoint remoteEndPoint, bool secureConnection) =>
+			Task.FromResult(password == "123");
 	}
 }

@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
-using CSharp_SMTP_Server.Protocol;
 
 namespace CSharp_SMTP_Server
 {
@@ -15,28 +16,20 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// Server options.
 		/// </summary>
-		public ServerOptions Options;
+		public readonly ServerOptions Options;
 
-		internal IMailDelivery MailDeliveryInterface { get; private set; }
+		internal readonly IMailDelivery MailDeliveryInterface;
 
-		internal IAuthLogin AuthLogin { get; private set; }
-		internal IMailFilter Filter { get; private set; }
+		internal IAuthLogin? AuthLogin { get; private set; }
+		internal IMailFilter? Filter { get; private set; }
 
-		internal ILogger LoggerInterface { get; private set; }
+		internal readonly ILogger? LoggerInterface;
 
-		internal X509Certificate Certificate { get; private set; }
+		internal X509Certificate? Certificate { get; private set; }
 
-		internal List<Listener> Listeners { get; private set; }
+		private readonly List<Listener> _listeners = new();
 
-        /// <summary>
-        /// Initializes the instance of SMTP server without TLS certificate.
-        /// </summary>
-        /// <param name="parameters">Listening parameters</param>
-        /// <param name="options">Server options</param>
-        /// <param name="deliveryInterface">Interface used for email delivery.</param>
-        /// <param name="loggerInterface">Interface used for logging server errors.</param>
-        public SMTPServer(IEnumerable<ListeningParameters> parameters, ServerOptions options, IMailDelivery deliveryInterface, ILogger loggerInterface) :
-			this(parameters, options, deliveryInterface, loggerInterface, null){}
+		private bool _started;
 
 		/// <summary>
 		/// Initializes the instance of SMTP server with TLS certificate.
@@ -46,40 +39,50 @@ namespace CSharp_SMTP_Server
 		/// <param name="deliveryInterface">Interface used for email delivery.</param>
 		/// <param name="loggerInterface">Interface used for logging server errors.</param>
 		/// <param name="certificate">TLS certificate of the server.</param>
-		public SMTPServer(IEnumerable<ListeningParameters> parameters, ServerOptions options, IMailDelivery deliveryInterface, ILogger loggerInterface,
-			X509Certificate certificate)
+		public SMTPServer(IEnumerable<ListeningParameters>? parameters, ServerOptions options,
+			IMailDelivery deliveryInterface, ILogger? loggerInterface = null,
+			X509Certificate? certificate = null)
 		{
-			if (SMTPCodes.Codes == null) SMTPCodes.Init();
-
 			Options = options;
 			MailDeliveryInterface = deliveryInterface;
 			LoggerInterface = loggerInterface;
 			Certificate = certificate;
 
-			Listeners = new List<Listener>();
+			if (parameters != null)
+				foreach (var parameter in parameters)
+				{
+					if (parameter == null)
+						continue;
+					
+					if (parameter.RegularPorts != null)
+						foreach (var port in parameter.RegularPorts)
+							_listeners.Add(new Listener(parameter.IpAddress, port, this, false));
 
-			foreach (var parameter in parameters)
-			{
-				foreach (var port in parameter.RegularPorts)
-					Listeners.Add(new Listener(parameter.IpAddress, port, this, false));
 
-				foreach (var port in parameter.TlsPorts)
-					Listeners.Add(new Listener(parameter.IpAddress, port, this, true));
-			}
+					if (parameter.TlsPorts != null)
+						foreach (var port in parameter.TlsPorts)
+							_listeners.Add(new Listener(parameter.IpAddress, port, this, true));
+				}
 		}
 
 		/// <summary>
 		/// Starts the server.
 		/// </summary>
-		public void Start() => Listeners.ForEach(listener => listener.Start());
+		public void Start()
+		{
+			_started = true;
+			_listeners.ForEach(listener => listener.Start());
+		}
 
 		/// <summary>
 		/// Stops and disposes the server.
 		/// </summary>
 		public void Dispose()
 		{
-			foreach (var listener in Listeners)
-				listener?.Dispose();
+			GC.SuppressFinalize(this);
+			
+			foreach (var listener in _listeners)
+				listener.Dispose();
 
 			Certificate?.Dispose();
 		}
@@ -88,20 +91,36 @@ namespace CSharp_SMTP_Server
 		/// Sets the interface used for authentication. Enables authentication if not null.
 		/// </summary>
 		/// <param name="authInterface"></param>
-		public void SetAuthLogin(IAuthLogin authInterface) => AuthLogin = authInterface;
+		public void SetAuthLogin(IAuthLogin? authInterface) => AuthLogin = authInterface;
 
         /// <summary>
         /// Sets the email filter.
         /// </summary>
         /// <param name="mailFilter">Filter instance.</param>
-        public void SetFilter(IMailFilter mailFilter) => Filter = mailFilter;
+        public void SetFilter(IMailFilter? mailFilter) => Filter = mailFilter;
 
         /// <summary>
         /// Sets the TLS certificate of the server.
         /// </summary>
         /// <param name="certificate">Certificate used by the server</param>
+        // ReSharper disable once InconsistentNaming
         public void SetTLSCertificate(X509Certificate certificate) => Certificate = certificate;
 
-		internal void DeliverMessage(MailTransaction transaction) => MailDeliveryInterface.EmailReceived(transaction);
+		internal Task DeliverMessage(MailTransaction transaction) => MailDeliveryInterface.EmailReceived(transaction);
+
+		/// <summary>
+		/// Adds a new listener to the server.
+		/// </summary>
+		/// <param name="ipAddress">Listening IP address</param>
+		/// <param name="port">Listening port</param>
+		/// <param name="tls">Whether listener always uses TLS</param>
+		internal void AddListener(IPAddress ipAddress, ushort port, bool tls)
+		{
+			var l = new Listener(ipAddress, port, this, tls);
+			_listeners.Add(l);
+			
+			if (_started)
+				l.Start();
+		}
 	}
 }
