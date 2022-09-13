@@ -9,8 +9,8 @@ This server is only returning all received emails to interface provided by the s
 
 # Compatible with
 * RFC 1869 (SMTP Service Extensions)
-* RFC 4954 (SMTP Service Extension for Authentication)
 * RFC 3463 (Enhanced Mail System Status Codes)
+* RFC 4954 (SMTP Service Extension for Authentication)
 * RFC 5321 (SMTP Protocol)
 
 # Basic usage
