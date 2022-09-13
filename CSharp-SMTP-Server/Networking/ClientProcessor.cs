@@ -23,7 +23,8 @@ namespace CSharp_SMTP_Server.Networking
 			_innerStream = c.GetStream();
 			_stream = _innerStream;
 			_encoder = new UTF8Encoding();
-			RemoteEndPoint = _client.Client.RemoteEndPoint;
+			if (_client.Client.RemoteEndPoint is IPEndPoint ipe)
+				RemoteEndPoint = ipe;
 			Encryption = ConnectionEncryption.Plaintext;
 			Secure = secure && Server.Certificate != null;
 			
@@ -33,7 +34,7 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly CancellationTokenSource _ts = new();
 		private readonly CancellationToken _t;
 		
-		internal readonly EndPoint? RemoteEndPoint;
+		internal readonly IPEndPoint? RemoteEndPoint;
 
 		private readonly TcpClient _client;
 		private readonly NetworkStream _innerStream;

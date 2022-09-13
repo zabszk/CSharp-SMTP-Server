@@ -17,7 +17,7 @@ namespace CSharp_SMTP_Server
 		public readonly string From;
 		public string? Body;
 
-		public string? Subject => Headers != null && Headers.TryGetValue("Subject", out var value) ? value : null;
+		public string? Subject => TryGetHeader("Subject", out var value) ? value : null;
 
 		/// <summary>
 		/// Recipients specified in the transaction.
@@ -32,18 +32,18 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// Recipients specified in the header (CC).
 		/// </summary>
-		public IEnumerable<string> Cc => ParseAddresses("Cc");
+		public IEnumerable<string> Cc => ParseAddresses("cc");
 		
 		/// <summary>
 		/// Recipients specified in the header (BCC).
 		/// </summary>
-		public IEnumerable<string> Bcc => ParseAddresses("Bcc");
+		public IEnumerable<string> Bcc => ParseAddresses("bcc");
 		
 		private IEnumerable<string> ParseAddresses(string header)
 		{
-			if (Headers == null || !Headers.TryGetValue(header, out var t)) yield break;
+			if (!TryGetHeader(header, out var t)) yield break;
 			
-			while (t.Contains('<', StringComparison.Ordinal))
+			while (t!.Contains('<', StringComparison.Ordinal))
 			{
 				if (!t.Contains('>', StringComparison.Ordinal)) yield break;
 				var address = t[(t.IndexOf("<", StringComparison.Ordinal) + 1)..];
@@ -54,7 +54,21 @@ namespace CSharp_SMTP_Server
 			}
 		}
 
-		public Dictionary<string, string>? Headers;
+		private bool TryGetHeader(string header, out string? value)
+		{
+			value = null;
+			
+			if (Headers == null || !Headers.TryGetValue(header, out var tt))
+				return false;
+
+			if (tt.Count != 1)
+				return false;
+
+			value = tt[0];
+			return value != null;
+		}
+
+		public Dictionary<string, List<string>>? Headers;
 		
 		public EndPoint? RemoteEndPoint;
 

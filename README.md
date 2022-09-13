@@ -8,6 +8,7 @@ This server is only returning all received emails to interface provided by the s
 * AUTH LOGIN and AUTH PLAIN
 
 # Compatible with
+* RFC 822 (STANDARD FOR THE FORMAT OF ARPA INTERNET TEXT MESSAGES)
 * RFC 1869 (SMTP Service Extensions)
 * RFC 2554 (SMTP Service Extension for Authentication)
 * RFC 3463 (Enhanced Mail System Status Codes)

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server.Misc;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol.Responses;
+using static System.FormattableString;
 
 namespace CSharp_SMTP_Server.Protocol.Commands
 {
@@ -149,7 +150,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
                         return;
                     }
 
+                    string received = string.Empty;
+                    
                     if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
+                    else received = $"from {(processor.RemoteEndPoint == null ? "unknown" : processor.RemoteEndPoint.Address.ToString())} ";
+
+                    received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
+                    
+                    EmailParser.AddHeader("Received", received, ref processor.Transaction.Body);
                     processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.Body);
 
                     if (processor.Server.Filter != null)

@@ -13,9 +13,9 @@ namespace CSharp_SMTP_Server.Misc
         /// </summary>
         /// <param name="message">Received message</param>
         /// <returns>Headers of the email message</returns>
-        public static Dictionary<string, string> ParseHeaders(string message)
+        public static Dictionary<string, List<string>> ParseHeaders(string message)
         {
-            var hs = new Dictionary<string, string>();
+            var hs = new Dictionary<string, List<string>>();
             
             var split = message.Split('\n');
             for (var i = 0; i < split.Length; i++)
@@ -36,11 +36,21 @@ namespace CSharp_SMTP_Server.Misc
                     }
                     else break;
                 }
-                    
-                hs.Add(s[0], content);
+
+                if (!hs.ContainsKey(s[0]))
+                    hs.Add(s[0], new List<string>()
+                    {
+                        content
+                    });
+                else hs[s[0]].Add(content);
             }
 
             return hs;
+        }
+
+        public static void AddHeader(string name, string value, ref string body)
+        {
+            body = $"{name}: {value}\r\n{body}";
         }
     }
 }
