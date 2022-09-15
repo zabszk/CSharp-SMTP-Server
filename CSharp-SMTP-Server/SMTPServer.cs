@@ -14,6 +14,11 @@ namespace CSharp_SMTP_Server
 	public class SMTPServer : IDisposable
 	{
 		/// <summary>
+		/// Library version
+		/// </summary>
+		public const string VersionString = "1.1.0";
+		
+		/// <summary>
 		/// Server options.
 		/// </summary>
 		public readonly ServerOptions Options;

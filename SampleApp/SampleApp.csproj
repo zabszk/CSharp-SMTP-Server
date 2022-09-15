@@ -10,8 +10,9 @@
     <Copyright>Copyright by Łukasz Jurczyk, 2019-2022</Copyright>
     <LangVersion>10</LangVersion>
     <PackageVersion>1.1.0</PackageVersion>
-    <AssemblyVersion>1.1.0</AssemblyVersion>
-    <FileVersion>1.1.0</FileVersion>
+    <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
+    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
