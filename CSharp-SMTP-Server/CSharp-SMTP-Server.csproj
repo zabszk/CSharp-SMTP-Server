@@ -5,8 +5,7 @@
     <Authors>Łukasz Jurczyk</Authors>
     <Company />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Copyright>Łukasz Jurczyk</Copyright>
-    <PackageLicenseUrl></PackageLicenseUrl>
+    <Copyright>Copyright by Łukasz Jurczyk, 2019-2022</Copyright>
     <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
     <RepositoryType>GIT</RepositoryType>
@@ -15,10 +14,13 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <SignAssembly>false</SignAssembly>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageLicenseExpression></PackageLicenseExpression>
-    <TargetFrameworks>net6.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net5.0;net6.0;netcoreapp3.1;netstandard2.1</TargetFrameworks>
     <LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
+    <PackageVersion>1.1.0</PackageVersion>
+    <Title>CSharp SMTP Server</Title>
+    <AssemblyVersion>1.1.0</AssemblyVersion>
+    <FileVersion>1.1.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -28,7 +30,6 @@
   <ItemGroup>
     <None Include="..\LICENSE">
       <Pack>True</Pack>
-      <PackagePath></PackagePath>
     </None>
   </ItemGroup>
 
