@@ -29,9 +29,9 @@ namespace CSharp_SMTP_Server.Protocol
 		internal static async Task SendCode(ClientProcessor proc, ushort code) => await proc.WriteText($"{code} {Codes[code]}");
 
 		internal static async Task SendCode(ClientProcessor proc, ushort code, string enhanced) =>
-			await proc.WriteText($"{code} {enhanced}  {Codes[code]}");
+			await proc.WriteText($"{code} {enhanced} {Codes[code]}");
 
 		internal static async Task SendCode(ClientProcessor proc, ushort code, string enhanced, string text) =>
-			await proc.WriteText($"{code} {enhanced}  {text}");
+			await proc.WriteText($"{code} {enhanced} {text}");
 	}
 }
