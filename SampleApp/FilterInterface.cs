@@ -26,7 +26,7 @@ namespace SampleApp
 				SmtpResult(SmtpResultType.Success));
 
 		//Let's blacklist word "spam"
-		public Task<SmtpResult> CanProcessTransaction(MailTransaction transaction) => Task.FromResult(transaction.Body != null && transaction.Body.ToLower().Contains("spam", StringComparison.OrdinalIgnoreCase)
+		public Task<SmtpResult> CanProcessTransaction(MailTransaction transaction) => Task.FromResult(transaction.RawBody != null && transaction.RawBody.ToLower().Contains("spam", StringComparison.OrdinalIgnoreCase)
 			? new SmtpResult(SmtpResultType.PermanentFail)
 			: new SmtpResult(SmtpResultType.Success));
 	}

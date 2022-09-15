@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using CSharp_SMTP_Server.Networking;
 
@@ -15,7 +16,9 @@ namespace CSharp_SMTP_Server
 		}
 
 		public readonly string From;
-		public string? Body;
+		public string? RawBody;
+
+		public int BodyStartIndex { get; internal set; }
 
 		public string? Subject => TryGetHeader("Subject", out var value) ? value : null;
 
@@ -27,18 +30,24 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// Recipients specified in the header (To).
 		/// </summary>
-		public IEnumerable<string> To => ParseAddresses("To");
+		public IEnumerable<string> GetTo() => ParseAddresses("To");
 		
 		/// <summary>
 		/// Recipients specified in the header (CC).
 		/// </summary>
-		public IEnumerable<string> Cc => ParseAddresses("cc");
+		public IEnumerable<string> GetCc() => ParseAddresses("cc");
 		
 		/// <summary>
 		/// Recipients specified in the header (BCC).
 		/// </summary>
-		public IEnumerable<string> Bcc => ParseAddresses("bcc");
-		
+		public IEnumerable<string> GetBcc() => ParseAddresses("bcc");
+
+		/// <summary>
+		/// Returns email body without headers
+		/// </summary>
+		/// <returns>Email body</returns>
+		public string? GetMessageBody() => RawBody == null ? null : string.Join("\r\n", RawBody.Split('\n').Skip(BodyStartIndex).Select(x => x.TrimEnd('\r')));
+
 		private IEnumerable<string> ParseAddresses(string header)
 		{
 			if (!TryGetHeader(header, out var t)) yield break;
@@ -50,7 +59,7 @@ namespace CSharp_SMTP_Server
 				var i = address.IndexOf(">", StringComparison.Ordinal);
 				yield return address[..i];
 				if (i + 1 >= t.Length) yield break;
-				t = t.Substring(i + 1);
+				t = address[(i + 1)..];
 			}
 		}
 
@@ -65,7 +74,7 @@ namespace CSharp_SMTP_Server
 				return false;
 
 			value = tt[0];
-			return value != null;
+			return true;
 		}
 
 		public Dictionary<string, List<string>>? Headers;
@@ -84,10 +93,12 @@ namespace CSharp_SMTP_Server
 			return new MailTransaction(From)
 			{
 				AuthenticatedUser = AuthenticatedUser,
-				Body = Body,
+				RawBody = RawBody,
 				Headers = Headers,
 				RemoteEndPoint = RemoteEndPoint,
-				DeliverTo = DeliverTo
+				DeliverTo = DeliverTo,
+				Encryption = Encryption,
+				BodyStartIndex = BodyStartIndex
 			};
 		}
 	}

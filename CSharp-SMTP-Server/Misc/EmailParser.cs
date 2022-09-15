@@ -12,39 +12,46 @@ namespace CSharp_SMTP_Server.Misc
         /// Parses message headers.
         /// </summary>
         /// <param name="message">Received message</param>
+        /// <param name="bodyStartIndex">Line number where message body starts</param>
         /// <returns>Headers of the email message</returns>
-        public static Dictionary<string, List<string>> ParseHeaders(string message)
+        public static Dictionary<string, List<string>> ParseHeaders(string message, out int bodyStartIndex)
         {
             var hs = new Dictionary<string, List<string>>();
             
             var split = message.Split('\n');
-            for (var i = 0; i < split.Length; i++)
+            for (bodyStartIndex = 0; bodyStartIndex < split.Length; bodyStartIndex++)
             {
-                if (!split[i].Contains(':', StringComparison.Ordinal)) break;
-                var s = split[i].TrimEnd('\r').Split(':');
-                if (!s[1].StartsWith(" ", StringComparison.Ordinal)) continue;
-                var content = s[1];
-                for (var j = i + 1; j < split.Length; j++)
+                if (string.IsNullOrWhiteSpace(split[bodyStartIndex])) break;
+                if (split[bodyStartIndex].StartsWith(" ", StringComparison.Ordinal)) continue;
+                if (!split[bodyStartIndex].Contains(':', StringComparison.Ordinal)) break;
+                
+                var key = split[bodyStartIndex][..split[bodyStartIndex].IndexOf(": ", StringComparison.Ordinal)];
+                var content = split[bodyStartIndex][(split[bodyStartIndex].IndexOf(": ", StringComparison.Ordinal) + 1)..].TrimEnd();
+                
+                for (var j = bodyStartIndex + 1; j < split.Length; j++)
                 {
-                    if (split[j].Contains(':', StringComparison.Ordinal))
+                    if (!char.IsWhiteSpace(split[j][0]) || string.IsNullOrWhiteSpace(split[j]))
                         break;
-                    var tr = split[j].TrimEnd('\r');
-                    if (tr.Length > 0 && char.IsWhiteSpace(tr[0]))
+
+                    var tr = split[j].TrimEnd();
+                    if (tr.Length > 1)
                     {
-                        i++;
-                        content += tr.Trim();
+                        bodyStartIndex++;
+                        content += " " + tr[1..];
+                        continue;
                     }
-                    else break;
+                    
+                    break;
                 }
 
-                if (!hs.ContainsKey(s[0]))
-                    hs.Add(s[0], new List<string>()
+                if (!hs.ContainsKey(key))
+                    hs.Add(key, new List<string>()
                     {
                         content
                     });
-                else hs[s[0]].Add(content);
+                else hs[key].Add(content);
             }
-
+            
             return hs;
         }
 

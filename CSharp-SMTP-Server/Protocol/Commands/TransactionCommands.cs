@@ -140,7 +140,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 				if (dt == ".")
 				{
 					processor.CaptureData = 0;
-					processor.Transaction!.Body = processor.DataBuilder!.ToString();
+					processor.Transaction!.RawBody = processor.DataBuilder!.ToString();
 
                     if (processor.Server.Options.MessageCharactersLimit != 0 &&
                         processor.Server.Options.MessageCharactersLimit < processor.Counter)
@@ -157,8 +157,9 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
                     received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
                     
-                    EmailParser.AddHeader("Received", received, ref processor.Transaction.Body);
-                    processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.Body);
+                    EmailParser.AddHeader("Received", received, ref processor.Transaction.RawBody);
+                    processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.RawBody, out var startIndex);
+                    processor.Transaction.BodyStartIndex = startIndex;
 
                     if (processor.Server.Filter != null)
 					{
