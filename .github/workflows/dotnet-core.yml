@@ -11,20 +11,12 @@ jobs:
         os: [windows-latest]
         framework: ['6.0', '5.0', '3.1']
         include:
-        - os: ubuntu-18.04
-          target: linux-x64
         - os: windows-latest
           target: win-x64
     timeout-minutes: 30
 
     steps:
     - uses: actions/checkout@v3
-
-    - if: matrix.os == 'ubuntu-18.04'
-      name: Install Linux packages
-      run: |
-       sudo apt-get update
-       sudo apt-get install -y build-essential libkrb5-dev make gcc libc-dev cmake llvm
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
@@ -35,7 +27,7 @@ jobs:
       run: dotnet restore -r ${{ matrix.target }}
 
     - name: Build ${{ matrix.target }}
-      run: dotnet publish -r ${{ matrix.target }} -c release -o "${{ github.workspace }}/builds/${{ matrix.framework }}/${{ matrix.target }}"
+      run: dotnet publish --framework ${{ matrix.framework }} -r ${{ matrix.target }} -c release -o "${{ github.workspace }}/builds/${{ matrix.framework }}/${{ matrix.target }}"
 
     - name: Upload ${{ matrix.target }} Build
       uses: actions/upload-artifact@v2
@@ -48,4 +40,3 @@ jobs:
       with:
         name: LocalAdmin-all-${{ matrix.framework }}
         path: ${{ github.workspace }}/builds/${{ matrix.framework }}
-
