@@ -8,37 +8,50 @@ namespace CSharp_SMTP_Server
 {
 	public class MailTransaction : ICloneable
 	{
-		public MailTransaction(string from)
+		internal MailTransaction(string from)
 		{
 			From = from;
 			DeliverTo = new List<string>();
 			AuthenticatedUser = null;
 		}
 
+		/// <summary>
+		/// Mail sender
+		/// </summary>
 		public readonly string From;
+
+		/// <summary>
+		/// Raw message body (with headers)
+		/// </summary>
 		public string? RawBody;
 
+		/// <summary>
+		/// Index on which body of the message starts (after the headers)
+		/// </summary>
 		public int BodyStartIndex { get; internal set; }
 
+		/// <summary>
+		/// Subject of the message
+		/// </summary>
 		public string? Subject => TryGetHeader("Subject", out var value) ? value : null;
 
 		/// <summary>
-		/// Recipients specified in the transaction.
+		/// Recipients specified in the transaction
 		/// </summary>
-		public List<string> DeliverTo;
+		public List<string> DeliverTo { get; private set; }
 		
 		/// <summary>
-		/// Recipients specified in the header (To).
+		/// Recipients specified in the header (To)
 		/// </summary>
 		public IEnumerable<string> GetTo() => ParseAddresses("To");
 		
 		/// <summary>
-		/// Recipients specified in the header (CC).
+		/// Recipients specified in the header (CC)
 		/// </summary>
 		public IEnumerable<string> GetCc() => ParseAddresses("cc");
 		
 		/// <summary>
-		/// Recipients specified in the header (BCC).
+		/// Recipients specified in the header (BCC)
 		/// </summary>
 		public IEnumerable<string> GetBcc() => ParseAddresses("bcc");
 
@@ -77,16 +90,25 @@ namespace CSharp_SMTP_Server
 			return true;
 		}
 
-		public Dictionary<string, List<string>>? Headers;
+		/// <summary>
+		/// Email headers
+		/// </summary>
+		public Dictionary<string, List<string>>? Headers { get; internal set; }
 		
-		public EndPoint? RemoteEndPoint;
+		/// <summary>
+		/// Endpoint of the client/server sending the message
+		/// </summary>
+		public IPEndPoint? RemoteEndPoint { get; internal set; }
 
 		/// <summary>
 		/// Username of authenticated users. Empty if user is not authenticated.
 		/// </summary>
-		public string? AuthenticatedUser;
+		public string? AuthenticatedUser { get; internal set; }
 
-		public ConnectionEncryption Encryption;
+		/// <summary>
+		/// Encryption used for receiving this message
+		/// </summary>
+		public ConnectionEncryption Encryption { get; internal set; }
 
 		public object Clone()
 		{

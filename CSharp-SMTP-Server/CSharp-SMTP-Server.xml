@@ -97,10 +97,84 @@
             <param name="transaction">Transaction being just finished.</param>
             <returns></returns>
         </member>
-        <member name="F:CSharp_SMTP_Server.MailTransaction.AuthenticatedUser">
+        <member name="F:CSharp_SMTP_Server.MailTransaction.From">
+            <summary>
+            Mail sender
+            </summary>
+        </member>
+        <member name="F:CSharp_SMTP_Server.MailTransaction.RawBody">
+            <summary>
+            Raw message body (with headers)
+            </summary>
+        </member>
+        <member name="P:CSharp_SMTP_Server.MailTransaction.BodyStartIndex">
+            <summary>
+            Index on which body of the message starts (after the headers)
+            </summary>
+        </member>
+        <member name="P:CSharp_SMTP_Server.MailTransaction.Subject">
+            <summary>
+            Subject of the message
+            </summary>
+        </member>
+        <member name="P:CSharp_SMTP_Server.MailTransaction.DeliverTo">
+            <summary>
+            Recipients specified in the transaction
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.MailTransaction.GetTo">
+            <summary>
+            Recipients specified in the header (To)
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.MailTransaction.GetCc">
+            <summary>
+            Recipients specified in the header (CC)
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.MailTransaction.GetBcc">
+            <summary>
+            Recipients specified in the header (BCC)
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.MailTransaction.GetMessageBody">
+            <summary>
+            Returns email body without headers
+            </summary>
+            <returns>Email body</returns>
+        </member>
+        <member name="P:CSharp_SMTP_Server.MailTransaction.Headers">
+            <summary>
+            Email headers
+            </summary>
+        </member>
+        <member name="P:CSharp_SMTP_Server.MailTransaction.RemoteEndPoint">
+            <summary>
+            Endpoint of the client/server sending the message
+            </summary>
+        </member>
+        <member name="P:CSharp_SMTP_Server.MailTransaction.AuthenticatedUser">
             <summary>
             Username of authenticated users. Empty if user is not authenticated.
             </summary>
+        </member>
+        <member name="P:CSharp_SMTP_Server.MailTransaction.Encryption">
+            <summary>
+            Encryption used for receiving this message
+            </summary>
+        </member>
+        <member name="T:CSharp_SMTP_Server.Misc.EmailParser">
+            <summary>
+            Parser for email message.
+            </summary>
+        </member>
+        <member name="M:CSharp_SMTP_Server.Misc.EmailParser.ParseHeaders(System.String,System.Int32@)">
+            <summary>
+            Parses message headers.
+            </summary>
+            <param name="message">Received message</param>
+            <param name="bodyStartIndex">Line number where message body starts</param>
+            <returns>Headers of the email message</returns>
         </member>
         <member name="F:CSharp_SMTP_Server.Networking.ConnectionEncryption.Plaintext">
             <summary>
@@ -134,19 +208,13 @@
         </member>
         <member name="F:CSharp_SMTP_Server.Networking.ListeningParameters.TlsPorts">
             <summary>
-            Port numbers that always uses encryption
+            Port numbers that always uses TLS
             </summary>
         </member>
         <member name="T:CSharp_SMTP_Server.Protocol.Responses.SmtpResult">
             <summary>
             Smtp operation result.
             </summary>
-        </member>
-        <member name="M:CSharp_SMTP_Server.Protocol.Responses.SmtpResult.#ctor(CSharp_SMTP_Server.Protocol.Responses.SmtpResultType)">
-            <summary>
-            Initializes new instance.
-            </summary>
-            <param name="type">Response type.</param>
         </member>
         <member name="M:CSharp_SMTP_Server.Protocol.Responses.SmtpResult.#ctor(CSharp_SMTP_Server.Protocol.Responses.SmtpResultType,System.String)">
             <summary>
@@ -222,19 +290,15 @@
             Instance of the SMTP server.
             </summary>
         </member>
+        <member name="F:CSharp_SMTP_Server.SMTPServer.VersionString">
+            <summary>
+            Library version
+            </summary>
+        </member>
         <member name="F:CSharp_SMTP_Server.SMTPServer.Options">
             <summary>
             Server options.
             </summary>
-        </member>
-        <member name="M:CSharp_SMTP_Server.SMTPServer.#ctor(System.Collections.Generic.IEnumerable{CSharp_SMTP_Server.Networking.ListeningParameters},CSharp_SMTP_Server.ServerOptions,CSharp_SMTP_Server.Interfaces.IMailDelivery,CSharp_SMTP_Server.Interfaces.ILogger)">
-            <summary>
-            Initializes the instance of SMTP server without TLS certificate.
-            </summary>
-            <param name="parameters">Listening parameters</param>
-            <param name="options">Server options</param>
-            <param name="deliveryInterface">Interface used for email delivery.</param>
-            <param name="loggerInterface">Interface used for logging server errors.</param>
         </member>
         <member name="M:CSharp_SMTP_Server.SMTPServer.#ctor(System.Collections.Generic.IEnumerable{CSharp_SMTP_Server.Networking.ListeningParameters},CSharp_SMTP_Server.ServerOptions,CSharp_SMTP_Server.Interfaces.IMailDelivery,CSharp_SMTP_Server.Interfaces.ILogger,System.Security.Cryptography.X509Certificates.X509Certificate)">
             <summary>
@@ -273,6 +337,14 @@
             Sets the TLS certificate of the server.
             </summary>
             <param name="certificate">Certificate used by the server</param>
+        </member>
+        <member name="M:CSharp_SMTP_Server.SMTPServer.AddListener(System.Net.IPAddress,System.UInt16,System.Boolean)">
+            <summary>
+            Adds a new listener to the server.
+            </summary>
+            <param name="ipAddress">Listening IP address</param>
+            <param name="port">Listening port</param>
+            <param name="tls">Whether listener always uses TLS</param>
         </member>
     </members>
 </doc>
