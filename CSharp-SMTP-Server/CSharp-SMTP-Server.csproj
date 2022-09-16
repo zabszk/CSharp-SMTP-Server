@@ -28,7 +28,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\LICENSE">
+    <None Include="..\LICENSE" PackagePath="">
       <Pack>True</Pack>
     </None>
   </ItemGroup>
