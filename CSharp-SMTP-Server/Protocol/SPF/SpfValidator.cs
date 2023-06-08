@@ -21,11 +21,12 @@ public class SpfValidator
 	/// </summary>
 	public readonly DnsClient.DnsClient DnsClient;
 
+	#region Constructors
 	/// <summary>
 	/// Class constructor
 	/// </summary>
 	/// <param name="server">SMTP server which configuration should be used</param>
-	public SpfValidator(SMTPServer server) : this(server.Options.DnsServerEndpoint!, new DnsLogger(server)) { }
+	public SpfValidator(SMTPServer server) => DnsClient = server.DnsClient ?? throw new ArgumentException("Server has a null DnsClient", nameof(server));
 
 	/// <summary>
 	/// Class constructor
@@ -62,6 +63,7 @@ public class SpfValidator
 	/// <param name="dnsServerPort">DNS server port</param>
 	/// <param name="dnsClientOptions">DNS client options</param>
 	public SpfValidator(string dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
+	#endregion
 
 	/// <summary>
 	/// RFC 7208 (SPF) check_host() function
@@ -70,14 +72,14 @@ public class SpfValidator
 	/// <param name="ipAddress">IP address of the remote SMTP server</param>
 	/// <param name="domain">Email sender domain</param>
 	/// <returns>SPF validation result</returns>
-	public async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain) => await CheckHost(ipAddress, domain, 0);
+	public async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain) => await CheckHost(ipAddress, domain, 0);
 
-	private async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
+	private async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
 	{
 		var txtQuery = await DnsClient.Query(domain, QType.TXT);
 
 		if (txtQuery.ErrorCode != DnsErrorCode.NoError || txtQuery.Records == null)
-			return SpfResult.Temperror;
+			return ValidationResult.Temperror;
 
 		string? record = null;
 
@@ -87,13 +89,13 @@ public class SpfValidator
 				continue;
 
 			if (record != null)
-				return SpfResult.Permerror;
+				return ValidationResult.Permerror;
 
 			record = t.Text;
 		}
 
 		if (record == null)
-			return SpfResult.None;
+			return ValidationResult.None;
 
 		record = record[7..].TrimEnd();
 		var sp = record.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -102,7 +104,7 @@ public class SpfValidator
 
 		foreach (var s in sp)
 		{
-			var qualifier = SpfResult.Pass;
+			var qualifier = ValidationResult.Pass;
 			var mechanism = s;
 			string? args = null;
 			byte? cidr = null;
@@ -114,17 +116,17 @@ public class SpfValidator
 					break;
 
 				case '-':
-					qualifier = SpfResult.Fail;
+					qualifier = ValidationResult.Fail;
 					mechanism = s[1..];
 					break;
 
 				case '~':
-					qualifier = SpfResult.Softfail;
+					qualifier = ValidationResult.Softfail;
 					mechanism = s[1..];
 					break;
 
 				case '?':
-					qualifier = SpfResult.Neutral;
+					qualifier = ValidationResult.Neutral;
 					mechanism = s[1..];
 					break;
 			}
@@ -173,30 +175,30 @@ public class SpfValidator
 				case "a" when ipAddress.AddressFamily == AddressFamily.InterNetworkV6:
 					{
 						if (requestsMade > 10)
-							return ptrWasUsed ? SpfResult.Fail : SpfResult.Permerror;
+							return ptrWasUsed ? ValidationResult.Fail : ValidationResult.Permerror;
 
 						requestsMade++;
 
 						var result = await CheckAddressMatch(ipAddress, domain, args, cidr, qualifier);
-						if (result != SpfResult.None)
+						if (result != ValidationResult.None)
 							return qualifier;
 					}
 					break;
 
 				case "a":
-					return SpfResult.Permerror;
+					return ValidationResult.Permerror;
 
 				case "mx":
 					{
 						if (requestsMade > 10)
-							return ptrWasUsed ? SpfResult.Fail : SpfResult.Permerror;
+							return ptrWasUsed ? ValidationResult.Fail : ValidationResult.Permerror;
 
 						requestsMade++;
 
 						var mxQuery = await DnsClient.Query(args ?? domain, QType.MX);
 
 						if (mxQuery.ErrorCode != DnsErrorCode.NoError || mxQuery.Records == null)
-							return SpfResult.Temperror;
+							return ValidationResult.Temperror;
 
 						foreach (var q in mxQuery.Records)
 						{
@@ -204,12 +206,12 @@ public class SpfValidator
 								continue;
 
 							if (requestsMade > 10)
-								return SpfResult.Permerror;
+								return ValidationResult.Permerror;
 
 							requestsMade++;
 
 							var result = await CheckAddressMatch(ipAddress, ar.MailExchange, null, cidr, qualifier);
-							if (result != SpfResult.None)
+							if (result != ValidationResult.None)
 								return qualifier;
 						}
 					}
@@ -218,7 +220,7 @@ public class SpfValidator
 				case "ptr":
 					{
 						if (requestsMade > 10)
-							return ptrWasUsed ? SpfResult.Fail : SpfResult.Permerror;
+							return ptrWasUsed ? ValidationResult.Fail : ValidationResult.Permerror;
 
 						requestsMade++;
 
@@ -236,12 +238,12 @@ public class SpfValidator
 								continue;
 
 							if (requestsMade > 10)
-								return SpfResult.Fail;
+								return ValidationResult.Fail;
 
 							requestsMade++;
 							ptrWasUsed = true;
 
-							if (await CheckAddressMatch(ipAddress, ar.DomainName, null, null, SpfResult.Pass) == SpfResult.Pass)
+							if (await CheckAddressMatch(ipAddress, ar.DomainName, null, null, ValidationResult.Pass) == ValidationResult.Pass)
 								return qualifier;
 						}
 					}
@@ -273,47 +275,47 @@ public class SpfValidator
 							continue;
 
 						if (requestsMade > 10)
-							return SpfResult.Permerror;
+							return ValidationResult.Permerror;
 
 						requestsMade++;
 
 						var check = await CheckHost(ipAddress, args, requestsMade, ptrWasUsed);
-						return check == SpfResult.None ? SpfResult.Permerror : check;
+						return check == ValidationResult.None ? ValidationResult.Permerror : check;
 					}
 
 				case "include" when args != null:
 					{
 						if (requestsMade > 10)
-							return SpfResult.Permerror;
+							return ValidationResult.Permerror;
 
 						requestsMade++;
 
 						switch (await CheckHost(ipAddress, args, requestsMade, ptrWasUsed))
 						{
-							case SpfResult.Pass:
+							case ValidationResult.Pass:
 								return qualifier;
 
-							case SpfResult.Temperror:
-								return SpfResult.Temperror;
+							case ValidationResult.Temperror:
+								return ValidationResult.Temperror;
 
-							case SpfResult.Permerror:
-							case SpfResult.None:
-								return SpfResult.Permerror;
+							case ValidationResult.Permerror:
+							case ValidationResult.None:
+								return ValidationResult.Permerror;
 						}
 						break;
 					}
 			}
 		}
 
-		return SpfResult.Neutral;
+		return ValidationResult.Neutral;
 	}
 
-	private async Task<SpfResult> CheckAddressMatch(IPAddress ipAddress, string domain, string? args, int? cidr, SpfResult qualifier)
+	private async Task<ValidationResult> CheckAddressMatch(IPAddress ipAddress, string domain, string? args, int? cidr, ValidationResult qualifier)
 	{
 		var aQuery = await DnsClient.Query(args ?? domain, ipAddress.AddressFamily == AddressFamily.InterNetwork ? QType.A : QType.AAAA);
 
 		if (aQuery.ErrorCode != DnsErrorCode.NoError || aQuery.Records == null)
-			return SpfResult.Temperror;
+			return ValidationResult.Temperror;
 
 		if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
 		{
@@ -344,7 +346,7 @@ public class SpfValidator
 			}
 		}
 
-		return SpfResult.None;
+		return ValidationResult.None;
 	}
 
 	/// <summary>

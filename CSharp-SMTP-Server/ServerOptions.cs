@@ -43,26 +43,55 @@ namespace CSharp_SMTP_Server
 		public uint RecipientsLimit = 50;
 
 		/// <summary>
+		/// URL of list of all public suffixes of domains
+		/// </summary>
+		public string PublicSuffixList = "https://publicsuffix.org/list/public_suffix_list.dat";
+
+		/// <summary>
 		/// Enables or disables SPF validation of emails sent by unauthenticated users.
 		/// Default: true
 		/// </summary>
 		// ReSharper disable once InconsistentNaming
 		public bool ValidateSPF
 		{
-			get => _validateSpf;
+			get => _validateSPF;
 
 			set
 			{
 				if (!value)
 				{
-					_validateSpf = false;
+					_validateSPF = false;
 					return;
 				}
 
 				if (DnsServerEndpoint == null)
-					throw new Exception("SPF Validation can't be enabled if DNS endpoint is not defined!");
+					throw new Exception("SPF validation can't be enabled if DNS endpoint is not defined!");
 
-				_validateSpf = true;
+				_validateSPF = true;
+			}
+		}
+
+		/// <summary>
+		/// Enables or disables DMARC validation of emails sent by unauthenticated users.
+		/// Default: true
+		/// </summary>
+		// ReSharper disable once InconsistentNaming
+		public bool ValidateDMARC
+		{
+			get => _validateDMARC;
+
+			set
+			{
+				if (!value)
+				{
+					_validateDMARC = false;
+					return;
+				}
+
+				if (DnsServerEndpoint == null)
+					throw new Exception("DMARC validation can't be enabled if DNS endpoint is not defined!");
+
+				_validateDMARC = true;
 			}
 		}
 
@@ -75,17 +104,24 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="validateSpf">Indicates whether SPF validation should be enabled</param>
+		/// <param name="validateSPF">Indicates whether SPF validation should be enabled</param>
+		/// <param name="validateDMARC">Indicates whether DMARC validation should be enabled</param>
 		/// <param name="dnsServerEndpoint">Specifies DNS server endpoint</param>
-		public ServerOptions(bool validateSpf = true, EndPoint? dnsServerEndpoint = null)
+		// ReSharper disable InconsistentNaming
+		public ServerOptions(bool validateSPF = true, bool validateDMARC = true, EndPoint? dnsServerEndpoint = null)
 		{
-			_validateSpf = validateSpf;
+			_validateSPF = validateSPF;
+			_validateDMARC = validateDMARC;
 			DnsServerEndpoint = dnsServerEndpoint;
 
-			if (validateSpf && DnsServerEndpoint == null)
+			if ((validateSPF || validateDMARC) && DnsServerEndpoint == null)
 				DnsServerEndpoint = new IPEndPoint(IPAddress.Parse("1.1.1.1"), 53);
 		}
 
-		private bool _validateSpf;
+		// ReSharper disable once InconsistentNaming
+		private bool _validateSPF;
+
+		// ReSharper disable once InconsistentNaming
+		private bool _validateDMARC;
 	}
 }

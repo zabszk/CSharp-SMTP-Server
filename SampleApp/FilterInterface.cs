@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Protocol.Responses;
-using CSharp_SMTP_Server.Protocol.SPF;
+using CSharp_SMTP_Server.Protocol;
 
 namespace SampleApp
 {
@@ -20,7 +20,7 @@ namespace SampleApp
 				SmtpResult(SmtpResultType.Success));
 
 		//Let's reject Softfail as well
-		public Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint ep, string username, SpfResult spfResult) => Task.FromResult(spfResult == SpfResult.Softfail
+		public Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint ep, string username, ValidationResult validationResult) => Task.FromResult(validationResult == ValidationResult.Softfail
 			? new SmtpResult(SmtpResultType.PermanentFail)
 			: new
 				SmtpResult(SmtpResultType.Success));

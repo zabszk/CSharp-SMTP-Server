@@ -1,9 +1,9 @@
-﻿namespace CSharp_SMTP_Server.Protocol.SPF;
+﻿namespace CSharp_SMTP_Server.Protocol;
 
 /// <summary>
-/// SPF validation result
+/// SPF or DMARC validation result
 /// </summary>
-public enum SpfResult
+public enum ValidationResult
 {
 #pragma warning disable CS1591
 	None,
@@ -14,10 +14,11 @@ public enum SpfResult
 	Temperror,
 	Permerror,
 #pragma warning restore CS1591
+
 	/// <summary>
 	/// SPF validation is disabled in SMTP server config
 	/// </summary>
-	SpfCheckDisabled,
+	CheckDisabled,
 
 	/// <summary>
 	/// SPF validation was skipped, because user is authenticated

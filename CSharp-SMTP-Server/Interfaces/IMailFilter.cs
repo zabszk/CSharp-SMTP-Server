@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Protocol.Responses;
-using CSharp_SMTP_Server.Protocol.SPF;
+using CSharp_SMTP_Server.Protocol;
 
 namespace CSharp_SMTP_Server.Interfaces
 {
@@ -33,9 +33,9 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// <param name="source">\"From\" value</param>
 		/// <param name="ep">Remote endpoint of the connection</param>
 		/// <param name="username">Username (if authenticated)</param>
-		/// <param name="spfResult">SPF validation result</param>
+		/// <param name="validationResult">SPF validation result</param>
 		/// <returns>Whether the sender is authorized for this \"From\" value</returns>
-		Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint? ep, string? username, SpfResult spfResult);
+		Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint? ep, string? username, ValidationResult validationResult);
 
 		/// <summary>
 		/// Called when client adds a recipient.

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using CSharp_SMTP_Server.Networking;
-using CSharp_SMTP_Server.Protocol.SPF;
+using CSharp_SMTP_Server.Protocol;
 
 namespace CSharp_SMTP_Server
 {
@@ -12,11 +12,11 @@ namespace CSharp_SMTP_Server
 	/// </summary>
 	public class MailTransaction : ICloneable
 	{
-		internal MailTransaction(string from, string fromDomain, SpfResult spfResult)
+		internal MailTransaction(string from, string fromDomain, ValidationResult validationResult)
 		{
 			From = from;
 			FromDomain = fromDomain;
-			SpfValidationResult = spfResult;
+			SPFValidationResult = validationResult;
 			DeliverTo = new List<string>();
 			AuthenticatedUser = null;
 		}
@@ -132,12 +132,20 @@ namespace CSharp_SMTP_Server
 		/// SPF validation result
 		/// </summary>
 		// ReSharper disable once MemberCanBePrivate.Global
-		public readonly SpfResult SpfValidationResult;
+		// ReSharper disable once InconsistentNaming
+		public readonly ValidationResult SPFValidationResult;
+
+		/// <summary>
+		/// DMARC validation result
+		/// </summary>
+		// ReSharper disable once MemberCanBePrivate.Global
+		// ReSharper disable once InconsistentNaming
+		public ValidationResult DMARCValidationResult { get; internal set; }
 
 		/// <inheritdoc />
 		public object Clone()
 		{
-			return new MailTransaction(From, FromDomain, SpfValidationResult)
+			return new MailTransaction(From, FromDomain, SPFValidationResult)
 			{
 				AuthenticatedUser = AuthenticatedUser,
 				RawBody = RawBody,

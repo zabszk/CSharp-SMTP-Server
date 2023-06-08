@@ -5,7 +5,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
+using CSharp_SMTP_Server.Protocol;
 using CSharp_SMTP_Server.Protocol.SPF;
+using CSharp_SMTP_Server.Protocol.DMARC;
+using DnsClient;
 
 namespace CSharp_SMTP_Server
 {
@@ -26,9 +29,19 @@ namespace CSharp_SMTP_Server
 		public readonly ServerOptions Options;
 
 		/// <summary>
+		/// DNS Client used for email messages authentication
+		/// </summary>
+		public readonly DnsClient.DnsClient? DnsClient;
+
+		/// <summary>
 		/// SPF validator
 		/// </summary>
 		public readonly SpfValidator? SpfValidator;
+
+		/// <summary>
+		/// DMARC validator
+		/// </summary>
+		public readonly DmarcValidator? DmarcValidator;
 
 		internal readonly IMailDelivery MailDeliveryInterface;
 
@@ -62,7 +75,11 @@ namespace CSharp_SMTP_Server
 			Certificate = certificate;
 
 			if (Options.DnsServerEndpoint != null)
+			{
+				DnsClient = new DnsClient.DnsClient(Options.DnsServerEndpoint, new DnsClientOptions {ErrorLogging = new DnsLogger(this)});
 				SpfValidator = new SpfValidator(this);
+				DmarcValidator = new DmarcValidator(this);
+			}
 
 			if (parameters != null)
 				foreach (var parameter in parameters)
@@ -73,7 +90,6 @@ namespace CSharp_SMTP_Server
 					if (parameter.RegularPorts != null)
 						foreach (var port in parameter.RegularPorts)
 							_listeners.Add(new Listener(parameter.IpAddress, port, this, false));
-
 
 					if (parameter.TlsPorts != null)
 						foreach (var port in parameter.TlsPorts)
@@ -139,6 +155,9 @@ namespace CSharp_SMTP_Server
 				l.Start();
 		}
 
+		/// <summary>
+		/// <see cref="SMTPServer"/> finalizer
+		/// </summary>
 		~SMTPServer() => Dispose();
 	}
 }

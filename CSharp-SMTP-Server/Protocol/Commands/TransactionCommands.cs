@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server.Misc;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol.Responses;
-using CSharp_SMTP_Server.Protocol.SPF;
 using static System.FormattableString;
 
 namespace CSharp_SMTP_Server.Protocol.Commands
@@ -42,10 +41,10 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 								}
 							}
 
-							var spfValidation = SpfResult.SpfCheckDisabled;
+							var spfValidation = ValidationResult.CheckDisabled;
 
 							if (processor.Username != null)
-								spfValidation = SpfResult.UserAuthenticated;
+								spfValidation = ValidationResult.UserAuthenticated;
 							else if (processor.Server.Options.ValidateSPF && processor.RemoteEndPoint != null)
 							{
 								if (processor.SpfResultsCache!.TryGetValue(domain!, out var spfRes))
@@ -56,7 +55,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									processor.SpfResultsCache.Add(domain!, spfValidation);
 								}
 
-								if (spfValidation == SpfResult.Fail)
+								if (spfValidation == ValidationResult.Fail)
 								{
 									await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF, message refused");
 									return;
@@ -197,8 +196,29 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 					EmailParser.AddHeader("Received", received, ref processor.Transaction.RawBody);
 
-					if (processor.Transaction.SpfValidationResult != SpfResult.UserAuthenticated && processor.Transaction.SpfValidationResult != SpfResult.SpfCheckDisabled)
-						EmailParser.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SpfValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}", ref processor.Transaction.RawBody);
+					if (processor.Transaction.SPFValidationResult != ValidationResult.UserAuthenticated && processor.Transaction.SPFValidationResult != ValidationResult.CheckDisabled)
+						EmailParser.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SPFValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}", ref processor.Transaction.RawBody);
+
+					if (processor.Server.Options.ValidateDMARC)
+					{
+						if (processor.Username != null)
+							processor.Transaction.DMARCValidationResult = ValidationResult.UserAuthenticated;
+						else
+						{
+							var dmarcValidation = await processor.Server.DmarcValidator!.ValidateTransaction(processor.Transaction);
+							processor.Transaction.DMARCValidationResult = dmarcValidation;
+
+							if (dmarcValidation == ValidationResult.Fail)
+							{
+								await processor.WriteCode(554, "5.7.1", "Delivery not authorized by DMARC, message refused");
+								return;
+							}
+
+							ProcessAddress(processor.Transaction.GetFrom, out var fromDomain);
+							EmailParser.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dmarc={processor.Transaction.SPFValidationResult.ToString().ToLowerInvariant()} header.from={fromDomain ?? "(none)"}", ref processor.Transaction.RawBody);
+						}
+					}
+					else processor.Transaction.DMARCValidationResult = ValidationResult.CheckDisabled;
 
 					processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.RawBody, out var startIndex);
 					processor.Transaction.BodyStartIndex = startIndex;
@@ -237,9 +257,12 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			}
 		}
 
-		private static string? ProcessAddress(string data, out string? domain)
+		internal static string? ProcessAddress(string? data, out string? domain)
 		{
 			domain = null;
+			if (data == null)
+				return null;
+
 			if (!data.Contains('<', StringComparison.Ordinal) || !data.Contains('>', StringComparison.Ordinal)) return null;
 
 			var address = data[(data.IndexOf("<", StringComparison.Ordinal) + 1)..];

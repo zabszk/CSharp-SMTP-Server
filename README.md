@@ -16,6 +16,8 @@ This server is only returning all received emails to interface provided by the s
 * RFC 4954 (SMTP Service Extension for Authentication)
 * RFC 5321 (SMTP Protocol)
 * RFC 7208 (Sender Policy Framework)
+* RFC 7372 (Email Authentication Status Codes)
+* RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC)) [Partially Supported]
 
 # Basic usage
 ```cs

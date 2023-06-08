@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server.Protocol;
 using CSharp_SMTP_Server.Protocol.Commands;
 using CSharp_SMTP_Server.Protocol.Responses;
-using CSharp_SMTP_Server.Protocol.SPF;
 
 namespace CSharp_SMTP_Server.Networking
 {
@@ -36,7 +35,7 @@ namespace CSharp_SMTP_Server.Networking
 			Init();
 		}
 
-		internal readonly Dictionary<string, SpfResult>? SpfResultsCache;
+		internal readonly Dictionary<string, ValidationResult>? SpfResultsCache;
 
 		private readonly CancellationTokenSource _ts = new();
 		private readonly CancellationToken _t;
