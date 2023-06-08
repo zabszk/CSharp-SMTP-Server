@@ -257,7 +257,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			if (address.Count(x => x == '@') != 1)
 				return null;
 
-			domain = data[(atIndex + 1)..];
+			domain = address[(atIndex + 1)..];
 
 			if (domain.Contains('.'))
 				return address;
