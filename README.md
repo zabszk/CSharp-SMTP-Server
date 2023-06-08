@@ -81,6 +81,12 @@ class FilterInterface : IMailFilter
 	public Task<SmtpResult> IsAllowedSender(string source, EndPoint ep) => Task.FromResult(source.TrimEnd().EndsWith(".invalid")
 		? new SmtpResult(SmtpResultType.PermanentFail)
 		: new SmtpResult(SmtpResultType.Success));
+		
+	//Let's reject Softfail as well
+	public Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint? ep, SpfResult spfResult) => Task.FromResult(spfResult == SpfResult.Softfail
+		? new SmtpResult(SmtpResultType.PermanentFail)
+		: new
+			SmtpResult(SmtpResultType.Success));
 
 	//Let's block all emails to root at any domain
 	public Task<SmtpResult> CanDeliver(string source, string destination, bool authenticated, string username,

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Protocol.Responses;
+using CSharp_SMTP_Server.Protocol.SPF;
 
 namespace SampleApp
 {
@@ -13,7 +14,13 @@ namespace SampleApp
 		public Task<SmtpResult> IsConnectionAllowed(EndPoint ep) => Task.FromResult(new SmtpResult(SmtpResultType.Success));
 
 		//Let's block .invalid TLD. You can do here eg. SPF validation
-		public Task<SmtpResult> IsAllowedSender(string source, EndPoint ep) => Task.FromResult(source.TrimEnd().EndsWith(".invalid")
+		public Task<SmtpResult> IsAllowedSender(string source, EndPoint ep, string username) => Task.FromResult(source.TrimEnd().EndsWith(".invalid")
+			? new SmtpResult(SmtpResultType.PermanentFail)
+			: new
+				SmtpResult(SmtpResultType.Success));
+
+		//Let's reject Softfail as well
+		public Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint ep, string username, SpfResult spfResult) => Task.FromResult(spfResult == SpfResult.Softfail
 			? new SmtpResult(SmtpResultType.PermanentFail)
 			: new
 				SmtpResult(SmtpResultType.Success));

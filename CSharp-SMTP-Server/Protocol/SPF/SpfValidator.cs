@@ -16,19 +16,22 @@ namespace CSharp_SMTP_Server.Protocol.SPF;
 /// </summary>
 public class SpfValidator
 {
-	private readonly DnsClient.DnsClient _dnsClient;
+	/// <summary>
+	/// DNS Client used to validate SPF records
+	/// </summary>
+	public readonly DnsClient.DnsClient DnsClient;
 
 	/// <summary>
 	/// Class constructor
 	/// </summary>
 	/// <param name="server">SMTP server which configuration should be used</param>
-	public SpfValidator(SMTPServer server) : this(server.Options.DnsServerEndpoint, new DnsLogger(server)) { }
+	public SpfValidator(SMTPServer server) : this(server.Options.DnsServerEndpoint!, new DnsLogger(server)) { }
 
 	/// <summary>
 	/// Class constructor
 	/// </summary>
 	/// <param name="dnsClient">DNS client used for SPF validation</param>
-	public SpfValidator(DnsClient.DnsClient dnsClient) => _dnsClient = dnsClient;
+	public SpfValidator(DnsClient.DnsClient dnsClient) => DnsClient = dnsClient;
 
 	/// <summary>
 	/// Class constructor
@@ -66,12 +69,12 @@ public class SpfValidator
 	/// </summary>
 	/// <param name="ipAddress">IP address of the remote SMTP server</param>
 	/// <param name="domain">Email sender domain</param>
-	/// <param name="requestsCounter">Requests counter value before a recursive call</param>
-	/// <param name="ptrUsed">Indicates whether a PTR algorithm was used before a recursive call</param>
 	/// <returns>SPF validation result</returns>
-	public async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter = 0, bool ptrUsed = false)
+	public async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain) => await CheckHost(ipAddress, domain, 0);
+
+	private async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
 	{
-		var txtQuery = await _dnsClient.Query(domain, QType.TXT);
+		var txtQuery = await DnsClient.Query(domain, QType.TXT);
 
 		if (txtQuery.ErrorCode != DnsErrorCode.NoError || txtQuery.Records == null)
 			return SpfResult.Temperror;
@@ -190,7 +193,7 @@ public class SpfValidator
 
 						requestsMade++;
 
-						var mxQuery = await _dnsClient.Query(args ?? domain, QType.MX);
+						var mxQuery = await DnsClient.Query(args ?? domain, QType.MX);
 
 						if (mxQuery.ErrorCode != DnsErrorCode.NoError || mxQuery.Records == null)
 							return SpfResult.Temperror;
@@ -219,7 +222,7 @@ public class SpfValidator
 
 						requestsMade++;
 
-						var ptrQuery = await _dnsClient.QueryReverseDNS(ipAddress);
+						var ptrQuery = await DnsClient.QueryReverseDNS(ipAddress);
 
 						if (ptrQuery.ErrorCode != DnsErrorCode.NoError || ptrQuery.Records == null)
 							continue;
@@ -307,7 +310,7 @@ public class SpfValidator
 
 	private async Task<SpfResult> CheckAddressMatch(IPAddress ipAddress, string domain, string? args, int? cidr, SpfResult qualifier)
 	{
-		var aQuery = await _dnsClient.Query(args ?? domain, ipAddress.AddressFamily == AddressFamily.InterNetwork ? QType.A : QType.AAAA);
+		var aQuery = await DnsClient.Query(args ?? domain, ipAddress.AddressFamily == AddressFamily.InterNetwork ? QType.A : QType.AAAA);
 
 		if (aQuery.ErrorCode != DnsErrorCode.NoError || aQuery.Records == null)
 			return SpfResult.Temperror;

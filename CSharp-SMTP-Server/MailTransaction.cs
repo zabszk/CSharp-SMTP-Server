@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using CSharp_SMTP_Server.Networking;
+using CSharp_SMTP_Server.Protocol.SPF;
 
 namespace CSharp_SMTP_Server
 {
@@ -11,9 +12,11 @@ namespace CSharp_SMTP_Server
 	/// </summary>
 	public class MailTransaction : ICloneable
 	{
-		internal MailTransaction(string from)
+		internal MailTransaction(string from, string fromDomain, SpfResult spfResult)
 		{
 			From = from;
+			FromDomain = fromDomain;
+			SpfValidationResult = spfResult;
 			DeliverTo = new List<string>();
 			AuthenticatedUser = null;
 		}
@@ -22,6 +25,12 @@ namespace CSharp_SMTP_Server
 		/// Mail sender
 		/// </summary>
 		public readonly string From;
+
+		/// <summary>
+		/// Mail sender domain
+		/// If SPF validation is enabled, this domain is validated
+		/// </summary>
+		public readonly string FromDomain;
 
 		/// <summary>
 		/// Raw message body (with headers)
@@ -42,6 +51,12 @@ namespace CSharp_SMTP_Server
 		/// Recipients specified in the transaction
 		/// </summary>
 		public List<string> DeliverTo { get; private set; }
+
+		/// <summary>
+		/// Sender of the message specified in the header
+		/// Note that this is NOT validated using SPF.
+		/// </summary>
+		public string? GetFrom => TryGetHeader("From", out var value) ? value : null;
 
 		/// <summary>
 		/// Recipients specified in the header (To)
@@ -113,10 +128,16 @@ namespace CSharp_SMTP_Server
 		/// </summary>
 		public ConnectionEncryption Encryption { get; internal set; }
 
+		/// <summary>
+		/// SPF validation result
+		/// </summary>
+		// ReSharper disable once MemberCanBePrivate.Global
+		public readonly SpfResult SpfValidationResult;
+
 		/// <inheritdoc />
 		public object Clone()
 		{
-			return new MailTransaction(From)
+			return new MailTransaction(From, FromDomain, SpfValidationResult)
 			{
 				AuthenticatedUser = AuthenticatedUser,
 				RawBody = RawBody,

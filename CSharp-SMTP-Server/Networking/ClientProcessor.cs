@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -10,6 +11,7 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server.Protocol;
 using CSharp_SMTP_Server.Protocol.Commands;
 using CSharp_SMTP_Server.Protocol.Responses;
+using CSharp_SMTP_Server.Protocol.SPF;
 
 namespace CSharp_SMTP_Server.Networking
 {
@@ -28,8 +30,13 @@ namespace CSharp_SMTP_Server.Networking
 			Encryption = ConnectionEncryption.Plaintext;
 			Secure = secure && Server.Certificate != null;
 
+			if (Server.SpfValidator != null)
+				SpfResultsCache = new();
+
 			Init();
 		}
+
+		internal readonly Dictionary<string, SpfResult>? SpfResultsCache;
 
 		private readonly CancellationTokenSource _ts = new();
 		private readonly CancellationToken _t;

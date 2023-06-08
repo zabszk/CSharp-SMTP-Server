@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server.Misc;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol.Responses;
+using CSharp_SMTP_Server.Protocol.SPF;
 using static System.FormattableString;
 
 namespace CSharp_SMTP_Server.Protocol.Commands
@@ -22,13 +23,13 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 				case "MAIL FROM":
 					{
-						var address = ProcessAddress(data);
+						var address = ProcessAddress(data, out var domain);
 						if (address == null) await processor.WriteCode(501, "5.5.2");
 						else
 						{
 							if (processor.Server.Filter != null)
 							{
-								var result = await processor.Server.Filter.IsAllowedSender(address, processor.RemoteEndPoint);
+								var result = await processor.Server.Filter.IsAllowedSender(address, processor.RemoteEndPoint, processor.Username);
 
 								if (result.Type != SmtpResultType.Success)
 								{
@@ -41,7 +42,43 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 								}
 							}
 
-							processor.Transaction = new MailTransaction(address)
+							var spfValidation = SpfResult.SpfCheckDisabled;
+
+							if (processor.Username != null)
+								spfValidation = SpfResult.UserAuthenticated;
+							else if (processor.Server.Options.ValidateSPF && processor.RemoteEndPoint != null)
+							{
+								if (processor.SpfResultsCache!.TryGetValue(domain!, out var spfRes))
+									spfValidation = spfRes;
+								else
+								{
+									spfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint.Address, domain!);
+									processor.SpfResultsCache.Add(domain!, spfValidation);
+								}
+
+								if (spfValidation == SpfResult.Fail)
+								{
+									await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF, message refused");
+									return;
+								}
+							}
+
+							if (processor.Server.Filter != null)
+							{
+								var result = await processor.Server.Filter.IsAllowedSenderSpfVerified(address, processor.RemoteEndPoint, processor.Username, spfValidation);
+
+								if (result.Type != SmtpResultType.Success)
+								{
+									await processor.WriteCode(554,
+										result.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
+										string.IsNullOrWhiteSpace(result.FailMessage)
+											? "Delivery not authorized, message refused"
+											: result.FailMessage);
+									return;
+								}
+							}
+
+							processor.Transaction = new MailTransaction(address, domain!, spfValidation)
 							{
 								RemoteEndPoint = processor.RemoteEndPoint,
 								Encryption = processor.Encryption
@@ -59,7 +96,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							return;
 						}
 
-						var address = ProcessAddress(data);
+						var address = ProcessAddress(data, out _);
 						if (address == null) await processor.WriteCode(501);
 						else
 						{
@@ -159,6 +196,10 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
 
 					EmailParser.AddHeader("Received", received, ref processor.Transaction.RawBody);
+
+					if (processor.Transaction.SpfValidationResult != SpfResult.UserAuthenticated && processor.Transaction.SpfValidationResult != SpfResult.SpfCheckDisabled)
+						EmailParser.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SpfValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}", ref processor.Transaction.RawBody);
+
 					processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.RawBody, out var startIndex);
 					processor.Transaction.BodyStartIndex = startIndex;
 
@@ -196,8 +237,9 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			}
 		}
 
-		private static string? ProcessAddress(string data)
+		private static string? ProcessAddress(string data, out string? domain)
 		{
+			domain = null;
 			if (!data.Contains('<', StringComparison.Ordinal) || !data.Contains('>', StringComparison.Ordinal)) return null;
 
 			var address = data[(data.IndexOf("<", StringComparison.Ordinal) + 1)..];
@@ -206,15 +248,22 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			if (string.IsNullOrWhiteSpace(address))
 				return null;
 
+			var lastDotIndex = address.LastIndexOf('.');
+			var atIndex = address.LastIndexOf('@');
+
+			if (lastDotIndex == -1 || atIndex == -1 || lastDotIndex < atIndex)
+				return null;
+
 			if (address.Count(x => x == '@') != 1)
 				return null;
 
-			var lastDotIndex = address.LastIndexOf('.');
+			domain = data[(atIndex + 1)..];
 
-			if (lastDotIndex == -1 || lastDotIndex < address.IndexOf('@'))
-				return null;
+			if (domain.Contains('.'))
+				return address;
 
-			return address;
+			domain = null;
+			return null;
 		}
 	}
 }

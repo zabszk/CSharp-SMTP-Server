@@ -5,6 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
+using CSharp_SMTP_Server.Protocol.SPF;
 
 namespace CSharp_SMTP_Server
 {
@@ -20,9 +21,14 @@ namespace CSharp_SMTP_Server
 		public const string VersionString = "1.1.0";
 
 		/// <summary>
-		/// Server options.
+		/// Server options
 		/// </summary>
 		public readonly ServerOptions Options;
+
+		/// <summary>
+		/// SPF validator
+		/// </summary>
+		public readonly SpfValidator? SpfValidator;
 
 		internal readonly IMailDelivery MailDeliveryInterface;
 
@@ -46,14 +52,17 @@ namespace CSharp_SMTP_Server
 		/// <param name="deliveryInterface">Interface used for email delivery.</param>
 		/// <param name="loggerInterface">Interface used for logging server errors.</param>
 		/// <param name="certificate">TLS certificate of the server.</param>
-		public SMTPServer(IEnumerable<ListeningParameters>? parameters, ServerOptions options,
+		public SMTPServer(IEnumerable<ListeningParameters>? parameters, ServerOptions? options,
 			IMailDelivery deliveryInterface, ILogger? loggerInterface = null,
 			X509Certificate? certificate = null)
 		{
-			Options = options;
+			Options = options ?? new();
 			MailDeliveryInterface = deliveryInterface;
 			LoggerInterface = loggerInterface;
 			Certificate = certificate;
+
+			if (Options.DnsServerEndpoint != null)
+				SpfValidator = new SpfValidator(this);
 
 			if (parameters != null)
 				foreach (var parameter in parameters)
