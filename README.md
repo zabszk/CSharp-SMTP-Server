@@ -1,4 +1,4 @@
-# CSharp-SMTP-Server
+# CSharp-SMTP-Server [![GitHub release](https://flat.badgen.net/github/release/zabszk/CSharp-SMTP-Server)](https://github.com/zabszk/CSharp-SMTP-Server/releases/) [![NuGet](https://flat.badgen.net/nuget/v/CSharp-SMTP-Server/latest)](https://www.nuget.org/packages/CSharp-SMTP-Server/) [![License](https://flat.badgen.net/github/license/zabszk/CSharp-SMTP-Server)](https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE)
 Simple (receive only) SMTP server library for C#.
 
 This server is only returning all received emails to interface provided by the software running this library.
