@@ -79,7 +79,7 @@ class FilterInterface : IMailFilter
 	//Allow all connections
 	public Task<SmtpResult> IsConnectionAllowed(EndPoint ep) => Task.FromResult(new SmtpResult(SmtpResultType.Success));
 
-	//Let's block .invalid TLD. You can do here eg. SPF validation
+	//Let's block .invalid TLD
 	public Task<SmtpResult> IsAllowedSender(string source, EndPoint ep) => Task.FromResult(source.TrimEnd().EndsWith(".invalid")
 		? new SmtpResult(SmtpResultType.PermanentFail)
 		: new SmtpResult(SmtpResultType.Success));
