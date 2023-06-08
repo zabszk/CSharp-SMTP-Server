@@ -6,21 +6,28 @@ using System.Threading.Tasks;
 using DnsClient;
 using DnsClient.Data.Records;
 using DnsClient.Enums;
+using DnsClient.Logging;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace CSharp_SMTP_Server.Protocol.SPF;
 
-internal class SpfValidator
+public class SpfValidator
 {
 	private readonly DnsClient.DnsClient _dnsClient;
-	private readonly SMTPServer _server;
 
-	internal SpfValidator(SMTPServer server)
-	{
-		_server = server;
-		_dnsClient = new DnsClient.DnsClient(_server.Options.DnsServerEndpoint, new DnsClientOptions {ErrorLogging = new DnsLogger(server)});
-	}
+	public SpfValidator(SMTPServer server) : this(server.Options.DnsServerEndpoint, new DnsLogger(server)) { }
 
-	internal async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter = 0, bool ptrUsed = false)
+	public SpfValidator(DnsClient.DnsClient dnsClient) => _dnsClient = dnsClient;
+
+	public SpfValidator(EndPoint dnsServerEndpoint, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerEndpoint, dnsClientOptions)) { }
+
+	public SpfValidator(EndPoint dnsServerEndpoint, IErrorLogging? errorLogging) : this(dnsServerEndpoint, new DnsClientOptions {ErrorLogging = errorLogging}) { }
+
+	public SpfValidator(IPAddress dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
+
+	public SpfValidator(string dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
+
+	public async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter = 0, bool ptrUsed = false)
 	{
 		var txtQuery = await _dnsClient.Query(domain, QType.TXT);
 
@@ -127,7 +134,7 @@ internal class SpfValidator
 
 						var result = await CheckAddressMatch(ipAddress, domain, args, cidr, qualifier);
 						if (result != SpfResult.None)
-							return SpfResult.None;
+							return qualifier;
 					}
 					break;
 
@@ -156,9 +163,9 @@ internal class SpfValidator
 
 							requestsMade++;
 
-							var result = await CheckAddressMatch(ipAddress, ar.MailExchange, args, cidr, qualifier);
+							var result = await CheckAddressMatch(ipAddress, ar.MailExchange, null, cidr, qualifier);
 							if (result != SpfResult.None)
-								return SpfResult.None;
+								return qualifier;
 						}
 					}
 					break;
