@@ -9,7 +9,7 @@ using CSharp_SMTP_Server.Networking;
 namespace CSharp_SMTP_Server
 {
 	/// <summary>
-	/// Instance of the SMTP server.
+	/// Instance of the SMTP server
 	/// </summary>
 	// ReSharper disable once InconsistentNaming
 	public class SMTPServer : IDisposable

@@ -11,22 +11,64 @@ using DnsClient.Logging;
 
 namespace CSharp_SMTP_Server.Protocol.SPF;
 
+/// <summary>
+/// SPF validator
+/// </summary>
 public class SpfValidator
 {
 	private readonly DnsClient.DnsClient _dnsClient;
 
+	/// <summary>
+	/// Class constructor
+	/// </summary>
+	/// <param name="server">SMTP server which configuration should be used</param>
 	public SpfValidator(SMTPServer server) : this(server.Options.DnsServerEndpoint, new DnsLogger(server)) { }
 
+	/// <summary>
+	/// Class constructor
+	/// </summary>
+	/// <param name="dnsClient">DNS client used for SPF validation</param>
 	public SpfValidator(DnsClient.DnsClient dnsClient) => _dnsClient = dnsClient;
 
+	/// <summary>
+	/// Class constructor
+	/// </summary>
+	/// <param name="dnsServerEndpoint">DNS server endpoint</param>
+	/// <param name="dnsClientOptions">DNS client options</param>
 	public SpfValidator(EndPoint dnsServerEndpoint, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerEndpoint, dnsClientOptions)) { }
 
+	/// <summary>
+	/// Class constructor
+	/// </summary>
+	/// <param name="dnsServerEndpoint">DNS server endpoint</param>
+	/// <param name="errorLogging">DNS client error logging interface</param>
 	public SpfValidator(EndPoint dnsServerEndpoint, IErrorLogging? errorLogging) : this(dnsServerEndpoint, new DnsClientOptions {ErrorLogging = errorLogging}) { }
 
+	/// <summary>
+	/// Class constructor
+	/// </summary>
+	/// <param name="dnsServerAddress">DNS server IP address</param>
+	/// <param name="dnsServerPort">DNS server port</param>
+	/// <param name="dnsClientOptions">DNS client options</param>
 	public SpfValidator(IPAddress dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
 
+	/// <summary>
+	/// Class constructor
+	/// </summary>
+	/// <param name="dnsServerAddress">DNS server IP address</param>
+	/// <param name="dnsServerPort">DNS server port</param>
+	/// <param name="dnsClientOptions">DNS client options</param>
 	public SpfValidator(string dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
 
+	/// <summary>
+	/// RFC 7208 (SPF) check_host() function
+	/// Authenticates remote SMTP server.
+	/// </summary>
+	/// <param name="ipAddress">IP address of the remote SMTP server</param>
+	/// <param name="domain">Email sender domain</param>
+	/// <param name="requestsCounter">Requests counter value before a recursive call</param>
+	/// <param name="ptrUsed">Indicates whether a PTR algorithm was used before a recursive call</param>
+	/// <returns></returns>
 	public async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter = 0, bool ptrUsed = false)
 	{
 		var txtQuery = await _dnsClient.Query(domain, QType.TXT);
@@ -302,14 +344,32 @@ public class SpfValidator
 		return SpfResult.None;
 	}
 
+	/// <summary>
+	/// Checks if two IP addresses belong to the same subnet
+	/// </summary>
+	/// <param name="a">First IP address</param>
+	/// <param name="b">Second IP address</param>
+	/// <param name="mask">Subnet mask length</param>
+	/// <returns></returns>
+	/// <exception cref="ArgumentException">Subnet mask length is not greater or equal to 0</exception>
 	// ReSharper disable once InconsistentNaming
-	private static bool CheckCIDR(IPAddress a, IPAddress b, int mask)
+	public static bool CheckCIDR(IPAddress a, IPAddress b, int mask)
 	{
 		if (a.AddressFamily != b.AddressFamily)
 			return false;
 
-		if ((mask == 32 && a.AddressFamily == AddressFamily.InterNetwork) || (mask == 128 && a.AddressFamily == AddressFamily.InterNetworkV6))
-			return a.Equals(b);
+		switch (mask)
+		{
+			case 0:
+				return true;
+
+			case < 0:
+				throw new ArgumentException(nameof(mask));
+
+			case 32 when a.AddressFamily == AddressFamily.InterNetwork:
+			case 128 when a.AddressFamily == AddressFamily.InterNetworkV6:
+				return a.Equals(b);
+		}
 
 		var aBytes = a.GetAddressBytes();
 		var bBytes = b.GetAddressBytes();
@@ -321,18 +381,23 @@ public class SpfValidator
 		{
 			var diff = mask - (i * 8);
 
-			if (diff == 0)
-				return true;
-
-			if (diff >= 8)
+			switch (diff)
 			{
-				if (aBytes[i] != bBytes[i])
-					return false;
-				continue;
-			}
+				case 0:
+					return true;
 
-			byte m = (byte)(0xFF << (8 - diff));
-			return (aBytes[i] & m) == (bBytes[i] & m);
+				case >= 8 when aBytes[i] != bBytes[i]:
+					return false;
+
+				case >= 8:
+					continue;
+
+				default:
+					{
+						var m = (byte)(0xFF << (8 - diff));
+						return (aBytes[i] & m) == (bBytes[i] & m);
+					}
+			}
 		}
 
 		return true;

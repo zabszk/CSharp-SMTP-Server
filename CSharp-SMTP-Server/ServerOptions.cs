@@ -5,6 +5,9 @@ using System.Security.Authentication;
 
 namespace CSharp_SMTP_Server
 {
+	/// <summary>
+	/// Options of the <see cref="SMTPServer"/>
+	/// </summary>
 	public class ServerOptions
 	{
 		/// <summary>

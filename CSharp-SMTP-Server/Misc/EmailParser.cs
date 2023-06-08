@@ -55,6 +55,12 @@ namespace CSharp_SMTP_Server.Misc
 			return hs;
 		}
 
+		/// <summary>
+		/// Adds a header to an email message
+		/// </summary>
+		/// <param name="name">Header name</param>
+		/// <param name="value">Header value</param>
+		/// <param name="body">Email message body</param>
 		public static void AddHeader(string name, string value, ref string body)
 		{
 			body = $"{name}: {value}\r\n{body}";

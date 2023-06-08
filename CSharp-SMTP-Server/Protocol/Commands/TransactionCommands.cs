@@ -9,7 +9,7 @@ using static System.FormattableString;
 
 namespace CSharp_SMTP_Server.Protocol.Commands
 {
-	internal class TransactionCommands
+	internal static class TransactionCommands
 	{
 		internal static async Task ProcessCommand(ClientProcessor processor, string command, string data)
 		{

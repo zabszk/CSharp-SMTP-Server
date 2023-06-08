@@ -3,7 +3,7 @@ using System.Text;
 
 namespace CSharp_SMTP_Server.Misc
 {
-	internal class Base64
+	internal static class Base64
 	{
 		internal static string Base64Encode(string plainText)
 		{

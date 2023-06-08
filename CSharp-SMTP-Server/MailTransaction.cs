@@ -6,6 +6,9 @@ using CSharp_SMTP_Server.Networking;
 
 namespace CSharp_SMTP_Server
 {
+	/// <summary>
+	/// SMTP transaction
+	/// </summary>
 	public class MailTransaction : ICloneable
 	{
 		internal MailTransaction(string from)
@@ -110,6 +113,7 @@ namespace CSharp_SMTP_Server
 		/// </summary>
 		public ConnectionEncryption Encryption { get; internal set; }
 
+		/// <inheritdoc />
 		public object Clone()
 		{
 			return new MailTransaction(From)
