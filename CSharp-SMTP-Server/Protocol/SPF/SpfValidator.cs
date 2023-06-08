@@ -68,7 +68,7 @@ public class SpfValidator
 	/// <param name="domain">Email sender domain</param>
 	/// <param name="requestsCounter">Requests counter value before a recursive call</param>
 	/// <param name="ptrUsed">Indicates whether a PTR algorithm was used before a recursive call</param>
-	/// <returns></returns>
+	/// <returns>SPF validation result</returns>
 	public async Task<SpfResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter = 0, bool ptrUsed = false)
 	{
 		var txtQuery = await _dnsClient.Query(domain, QType.TXT);
@@ -350,7 +350,7 @@ public class SpfValidator
 	/// <param name="a">First IP address</param>
 	/// <param name="b">Second IP address</param>
 	/// <param name="mask">Subnet mask length</param>
-	/// <returns></returns>
+	/// <returns>Whether two IP addresses are in the same subnet</returns>
 	/// <exception cref="ArgumentException">Subnet mask length is not greater or equal to 0</exception>
 	// ReSharper disable once InconsistentNaming
 	public static bool CheckCIDR(IPAddress a, IPAddress b, int mask)
