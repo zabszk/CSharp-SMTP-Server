@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <Platforms>AnyCPU</Platforms>
+    
     <RootNamespace>CSharp_SMTP_Server</RootNamespace>
     <Authors>Łukasz Jurczyk</Authors>
-    <Company />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Copyright>Copyright by Łukasz Jurczyk, 2019-2023</Copyright>
     <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
@@ -11,6 +12,7 @@
     <RepositoryType>GIT</RepositoryType>
     <Description>SMTP Server library for C#.</Description>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <SignAssembly>false</SignAssembly>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <LangVersion>10</LangVersion>
@@ -20,7 +22,7 @@
 	<GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
-    <PackageTags>smtp</PackageTags>
+    <PackageTags>smtp;smtp-server;spf</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -29,17 +31,20 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>D:\Visual Studio\CSharp-SMTP-Server\CSharp-SMTP-Server\CSharp-SMTP-Server.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\CSharp-SMTP-Server.xml</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DocumentationFile>bin\Debug\CSharp-SMTP-Server.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\LICENSE" PackagePath="">
-      <Pack>True</Pack>
-    </None>
+    <None Include="..\LICENSE" Pack="True" PackagePath="\" />
+    <None Include="..\README.md" Pack="True" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="zabszk.DnsClient" Version="1.0.0" />
   </ItemGroup>
-
 </Project>
