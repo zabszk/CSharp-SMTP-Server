@@ -13,17 +13,17 @@ namespace CSharp_SMTP_Server.Networking
 			RegularPorts = regularPorts;
 			TlsPorts = tlsPorts;
 		}
-		
+
 		/// <summary>
 		/// Binding IP address.
 		/// </summary>
 		public readonly IPAddress IpAddress;
-		
+
 		/// <summary>
 		/// Port of non-encrypted ports. Client can use StartTLS on that ports, if certificate is provided.
 		/// </summary>
 		public readonly ushort[]? RegularPorts;
-		
+
 		/// <summary>
 		/// Port numbers that always uses TLS
 		/// </summary>

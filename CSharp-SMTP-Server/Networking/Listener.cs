@@ -13,7 +13,7 @@ namespace CSharp_SMTP_Server.Networking
 
 		private readonly TcpListener _listener;
 		private readonly Thread _listenerThread;
-        private readonly bool _secure;
+		private readonly bool _secure;
 		private bool _dispose;
 
 		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure)
@@ -61,7 +61,7 @@ namespace CSharp_SMTP_Server.Networking
 		public void Dispose()
 		{
 			_dispose = true;
-			
+
 			_listener.Stop();
 
 			foreach (var processor in ClientProcessors)

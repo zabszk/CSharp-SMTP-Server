@@ -4,10 +4,10 @@ using CSharp_SMTP_Server.Protocol.Responses;
 
 namespace CSharp_SMTP_Server.Interfaces
 {
-    /// <summary>
-    /// Interface for handling emails filtering.
-    /// </summary>
-    public interface IMailFilter
+	/// <summary>
+	/// Interface for handling emails filtering.
+	/// </summary>
+	public interface IMailFilter
 	{
 		/// <summary>
 		/// Called when new connection has been established.

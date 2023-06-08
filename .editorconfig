@@ -1,0 +1,57 @@
+[*]
+charset = utf-8
+end_of_line = crlf
+
+# Microsoft .NET properties
+csharp_new_line_before_open_brace = all
+csharp_preferred_modifier_order = internal, volatile, public, protected, file, new, private, static, abstract, readonly, sealed, virtual, override, unsafe, extern, async, required:suggestion
+dotnet_style_parentheses_in_arithmetic_binary_operators = never_if_unnecessary:none
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:none
+dotnet_style_parentheses_in_relational_binary_operators = never_if_unnecessary:none
+dotnet_style_qualification_for_event = false:suggestion
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_property = true:suggestion
+
+# ReSharper properties
+resharper_accessor_owner_body = expression_body
+resharper_allow_comment_after_lbrace = true
+resharper_arguments_skip_single = true
+resharper_blank_lines_around_block_case_section = 0
+resharper_blank_lines_around_region = 1
+resharper_blank_lines_around_single_line_type = 0
+resharper_braces_for_for = not_required
+resharper_braces_for_ifelse = not_required
+resharper_braces_for_using = required_for_multiline
+resharper_braces_for_while = not_required
+resharper_braces_redundant = false
+resharper_csharp_blank_lines_around_field = 0
+resharper_csharp_blank_lines_around_invocable = 0
+resharper_csharp_case_block_braces = next_line_shifted_2
+resharper_csharp_empty_block_style = multiline
+resharper_csharp_max_line_length = 1133
+resharper_default_private_modifier = explicit
+resharper_default_value_when_type_evident = default_expression
+resharper_default_value_when_type_not_evident = default_expression
+resharper_indent_preprocessor_if = do_not_change
+resharper_indent_preprocessor_region = usual_indent
+resharper_method_or_operator_body = block_body
+resharper_outdent_binary_ops = true
+resharper_parentheses_non_obvious_operations = none, bitwise_and, bitwise_exclusive_or, bitwise_inclusive_or, bitwise
+resharper_parentheses_same_type_operations = true
+resharper_place_expr_method_on_single_line = if_owner_is_single_line
+resharper_place_expr_property_on_single_line = true
+resharper_place_field_attribute_on_same_line = false
+resharper_place_simple_accessorholder_on_single_line = true
+resharper_place_simple_accessor_on_single_line = false
+resharper_place_simple_embedded_statement_on_same_line = true
+resharper_place_simple_initializer_on_single_line = false
+resharper_space_within_single_line_array_initializer_braces = false
+resharper_stick_comment = true
+resharper_wrap_array_initializer_style = chop_if_long
+
+[*.cs]
+insert_final_newline = false
+indent_size = 4
+indent_style = tab
+trim_trailing_whitespace = true

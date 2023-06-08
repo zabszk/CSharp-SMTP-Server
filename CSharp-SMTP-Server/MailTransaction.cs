@@ -39,17 +39,17 @@ namespace CSharp_SMTP_Server
 		/// Recipients specified in the transaction
 		/// </summary>
 		public List<string> DeliverTo { get; private set; }
-		
+
 		/// <summary>
 		/// Recipients specified in the header (To)
 		/// </summary>
 		public IEnumerable<string> GetTo() => ParseAddresses("To");
-		
+
 		/// <summary>
 		/// Recipients specified in the header (CC)
 		/// </summary>
 		public IEnumerable<string> GetCc() => ParseAddresses("cc");
-		
+
 		/// <summary>
 		/// Recipients specified in the header (BCC)
 		/// </summary>
@@ -64,7 +64,7 @@ namespace CSharp_SMTP_Server
 		private IEnumerable<string> ParseAddresses(string header)
 		{
 			if (!TryGetHeader(header, out var t)) yield break;
-			
+
 			while (t!.Contains('<', StringComparison.Ordinal))
 			{
 				if (!t.Contains('>', StringComparison.Ordinal)) yield break;
@@ -79,7 +79,7 @@ namespace CSharp_SMTP_Server
 		private bool TryGetHeader(string header, out string? value)
 		{
 			value = null;
-			
+
 			if (Headers == null || !Headers.TryGetValue(header, out var tt))
 				return false;
 
@@ -94,7 +94,7 @@ namespace CSharp_SMTP_Server
 		/// Email headers
 		/// </summary>
 		public Dictionary<string, List<string>>? Headers { get; internal set; }
-		
+
 		/// <summary>
 		/// Endpoint of the client/server sending the message
 		/// </summary>

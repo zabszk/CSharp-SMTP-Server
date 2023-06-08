@@ -1,6 +1,6 @@
 ﻿namespace CSharp_SMTP_Server.Networking
 {
-    public enum ConnectionEncryption : byte
+	public enum ConnectionEncryption : byte
 	{
 		/// <summary>
 		/// No encryption

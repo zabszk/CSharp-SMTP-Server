@@ -99,7 +99,9 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			var split = auth.Split('\0');
 			if (split.Length != 3) return null;
 			return await processor.Server.AuthLogin!.AuthPlain(split[0], split[1], split[2], processor.RemoteEndPoint,
-				processor.Secure) ? split[1] : null;
+				processor.Secure)
+				? split[1]
+				: null;
 		}
 	}
 }

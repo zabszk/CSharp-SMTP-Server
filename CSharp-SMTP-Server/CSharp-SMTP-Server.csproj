@@ -5,7 +5,7 @@
     <Authors>Łukasz Jurczyk</Authors>
     <Company />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Copyright>Copyright by Łukasz Jurczyk, 2019-2022</Copyright>
+    <Copyright>Copyright by Łukasz Jurczyk, 2019-2023</Copyright>
     <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
     <RepositoryType>GIT</RepositoryType>
@@ -20,6 +20,7 @@
 	<GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+    <PackageTags>smtp</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -35,6 +36,10 @@
     <None Include="..\LICENSE" PackagePath="">
       <Pack>True</Pack>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="zabszk.DnsClient" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

@@ -5,12 +5,12 @@
 	/// </summary>
 	public struct SmtpResult
 	{
-        /// <summary>
-        /// Initializes new instance.
-        /// </summary>
-        /// <param name="type">Response type.</param>
-        /// <param name="failMessage">Custom message. Ignored if type is set to Success.</param>
-        public SmtpResult(SmtpResultType type, string? failMessage = null)
+		/// <summary>
+		/// Initializes new instance.
+		/// </summary>
+		/// <param name="type">Response type.</param>
+		/// <param name="failMessage">Custom message. Ignored if type is set to Success.</param>
+		public SmtpResult(SmtpResultType type, string? failMessage = null)
 		{
 			Type = type;
 			FailMessage = failMessage;

@@ -27,13 +27,13 @@ namespace CSharp_SMTP_Server.Networking
 				RemoteEndPoint = ipe;
 			Encryption = ConnectionEncryption.Plaintext;
 			Secure = secure && Server.Certificate != null;
-			
+
 			Init();
 		}
 
 		private readonly CancellationTokenSource _ts = new();
 		private readonly CancellationToken _t;
-		
+
 		internal readonly IPEndPoint? RemoteEndPoint;
 
 		private readonly TcpClient _client;
@@ -47,7 +47,7 @@ namespace CSharp_SMTP_Server.Networking
 
 		internal MailTransaction? Transaction;
 		internal StringBuilder? DataBuilder;
-        internal ulong Counter;
+		internal ulong Counter;
 
 		internal bool Secure { get; private set; }
 		internal ConnectionEncryption Encryption { get; private set; }
@@ -66,7 +66,7 @@ namespace CSharp_SMTP_Server.Networking
 			}
 			else
 				await Greet();
-			
+
 			if (!_dispose)
 				_reader = new StreamReader(_stream);
 
@@ -118,7 +118,7 @@ namespace CSharp_SMTP_Server.Networking
 
 					if (read == null)
 						continue;
-					
+
 					await ProcessResponse(read);
 				}
 				catch (ObjectDisposedException)
@@ -186,10 +186,10 @@ namespace CSharp_SMTP_Server.Networking
 			string command;
 			var data = string.Empty;
 
-			if (response.Contains(':', StringComparison.Ordinal)) command = response[..response.IndexOf(":", StringComparison.Ordinal)].ToUpper().TrimEnd();
+			if (response.Contains(':', StringComparison.Ordinal)) command = response[..response.IndexOf(":", StringComparison.Ordinal)].ToUpperInvariant().TrimEnd();
 			else if (response.Contains(' ', StringComparison.Ordinal))
 				command = response[..response.IndexOf(" ", StringComparison.Ordinal)].ToUpper(CultureInfo.InvariantCulture).TrimEnd();
-			else command = response.ToUpper(CultureInfo.InvariantCulture);
+			else command = response.ToUpperInvariant();
 
 			if (command.Length != response.Length)
 				data = response[command.Length..].TrimStart();
@@ -291,7 +291,7 @@ namespace CSharp_SMTP_Server.Networking
 		{
 			if (_dispose) return;
 			_dispose = true;
-			
+
 			_ts.Cancel();
 
 			Transaction = null;
@@ -307,7 +307,7 @@ namespace CSharp_SMTP_Server.Networking
 
 			_client.Close();
 			_client.Dispose();
-			
+
 			if (_listener.ClientProcessors.Contains(this))
 				_listener.ClientProcessors.Remove(this);
 		}

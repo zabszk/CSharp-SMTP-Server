@@ -11,13 +11,14 @@ namespace CSharp_SMTP_Server
 	/// <summary>
 	/// Instance of the SMTP server.
 	/// </summary>
+	// ReSharper disable once InconsistentNaming
 	public class SMTPServer : IDisposable
 	{
 		/// <summary>
 		/// Library version
 		/// </summary>
 		public const string VersionString = "1.1.0";
-		
+
 		/// <summary>
 		/// Server options.
 		/// </summary>
@@ -26,6 +27,7 @@ namespace CSharp_SMTP_Server
 		internal readonly IMailDelivery MailDeliveryInterface;
 
 		internal IAuthLogin? AuthLogin { get; private set; }
+
 		internal IMailFilter? Filter { get; private set; }
 
 		internal readonly ILogger? LoggerInterface;
@@ -58,7 +60,7 @@ namespace CSharp_SMTP_Server
 				{
 					if (parameter == null)
 						continue;
-					
+
 					if (parameter.RegularPorts != null)
 						foreach (var port in parameter.RegularPorts)
 							_listeners.Add(new Listener(parameter.IpAddress, port, this, false));
@@ -85,7 +87,7 @@ namespace CSharp_SMTP_Server
 		public void Dispose()
 		{
 			GC.SuppressFinalize(this);
-			
+
 			foreach (var listener in _listeners)
 				listener.Dispose();
 
@@ -98,18 +100,18 @@ namespace CSharp_SMTP_Server
 		/// <param name="authInterface"></param>
 		public void SetAuthLogin(IAuthLogin? authInterface) => AuthLogin = authInterface;
 
-        /// <summary>
-        /// Sets the email filter.
-        /// </summary>
-        /// <param name="mailFilter">Filter instance.</param>
-        public void SetFilter(IMailFilter? mailFilter) => Filter = mailFilter;
+		/// <summary>
+		/// Sets the email filter.
+		/// </summary>
+		/// <param name="mailFilter">Filter instance.</param>
+		public void SetFilter(IMailFilter? mailFilter) => Filter = mailFilter;
 
-        /// <summary>
-        /// Sets the TLS certificate of the server.
-        /// </summary>
-        /// <param name="certificate">Certificate used by the server</param>
-        // ReSharper disable once InconsistentNaming
-        public void SetTLSCertificate(X509Certificate certificate) => Certificate = certificate;
+		/// <summary>
+		/// Sets the TLS certificate of the server.
+		/// </summary>
+		/// <param name="certificate">Certificate used by the server</param>
+		// ReSharper disable once InconsistentNaming
+		public void SetTLSCertificate(X509Certificate certificate) => Certificate = certificate;
 
 		internal Task DeliverMessage(MailTransaction transaction) => MailDeliveryInterface.EmailReceived(transaction);
 
@@ -119,13 +121,15 @@ namespace CSharp_SMTP_Server
 		/// <param name="ipAddress">Listening IP address</param>
 		/// <param name="port">Listening port</param>
 		/// <param name="tls">Whether listener always uses TLS</param>
-		internal void AddListener(IPAddress ipAddress, ushort port, bool tls)
+		public void AddListener(IPAddress ipAddress, ushort port, bool tls)
 		{
 			var l = new Listener(ipAddress, port, this, tls);
 			_listeners.Add(l);
-			
+
 			if (_started)
 				l.Start();
 		}
+
+		~SMTPServer() => Dispose();
 	}
 }

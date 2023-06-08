@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Misc;
@@ -16,7 +17,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			{
 				case "RSET":
 					processor.Transaction = null;
-                    await processor.WriteCode(250, "2.1.5", "Flushed");
+					await processor.WriteCode(250, "2.1.5", "Flushed");
 					break;
 
 				case "MAIL FROM":
@@ -49,7 +50,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 						}
 					}
 					break;
-					
+
 				case "RCPT TO":
 					{
 						if (processor.Transaction == null)
@@ -62,15 +63,15 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 						if (address == null) await processor.WriteCode(501);
 						else
 						{
-                            if (processor.Server.Options.RecipientsLimit > 0 && processor.Server.Options.RecipientsLimit <= processor.Transaction.DeliverTo.Count)
-                            {
-                                await processor.WriteCode(550, "5.5.3", "Too many recipients");
-                                return;
-                            }
+							if (processor.Server.Options.RecipientsLimit > 0 && processor.Server.Options.RecipientsLimit <= processor.Transaction.DeliverTo.Count)
+							{
+								await processor.WriteCode(550, "5.5.3", "Too many recipients");
+								return;
+							}
 
 							if (processor.Server.Filter != null)
 							{
-								var filterResult = await processor.Server.Filter.CanDeliver(processor.Transaction.From,address, !string.IsNullOrEmpty(processor.Username), processor.Username, processor.RemoteEndPoint);
+								var filterResult = await processor.Server.Filter.CanDeliver(processor.Transaction.From, address, !string.IsNullOrEmpty(processor.Username), processor.Username, processor.RemoteEndPoint);
 
 								if (filterResult.Type != SmtpResultType.Success)
 								{
@@ -111,7 +112,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									processor.Transaction.DeliverTo.Add(address);
 									await processor.WriteCode(250, "2.1.5");
 									break;
-							}	
+							}
 						}
 					}
 					break;
@@ -124,8 +125,8 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					}
 
 					processor.DataBuilder = new StringBuilder();
-                    processor.Counter = 0;
-                    processor.CaptureData = 1;
+					processor.Counter = 0;
+					processor.CaptureData = 1;
 					await processor.WriteCode(354);
 					break;
 			}
@@ -142,33 +143,33 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					processor.CaptureData = 0;
 					processor.Transaction!.RawBody = processor.DataBuilder!.ToString();
 
-                    if (processor.Server.Options.MessageCharactersLimit != 0 &&
-                        processor.Server.Options.MessageCharactersLimit < processor.Counter)
-                    {
-                        processor.Transaction = null;
-                        await processor.WriteCode(552, "5.4.3", "Message size exceeds the administrative limit.");
-                        return;
-                    }
+					if (processor.Server.Options.MessageCharactersLimit != 0 &&
+					    processor.Server.Options.MessageCharactersLimit < processor.Counter)
+					{
+						processor.Transaction = null;
+						await processor.WriteCode(552, "5.4.3", "Message size exceeds the administrative limit.");
+						return;
+					}
 
-                    string received = string.Empty;
-                    
-                    if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
-                    else received = $"from {(processor.RemoteEndPoint == null ? "unknown" : processor.RemoteEndPoint.Address.ToString())} ";
+					string received = string.Empty;
 
-                    received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
-                    
-                    EmailParser.AddHeader("Received", received, ref processor.Transaction.RawBody);
-                    processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.RawBody, out var startIndex);
-                    processor.Transaction.BodyStartIndex = startIndex;
+					if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
+					else received = $"from {(processor.RemoteEndPoint == null ? "unknown" : processor.RemoteEndPoint.Address.ToString())} ";
 
-                    if (processor.Server.Filter != null)
+					received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
+
+					EmailParser.AddHeader("Received", received, ref processor.Transaction.RawBody);
+					processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.RawBody, out var startIndex);
+					processor.Transaction.BodyStartIndex = startIndex;
+
+					if (processor.Server.Filter != null)
 					{
 						var filterResult = await processor.Server.Filter.CanProcessTransaction(processor.Transaction);
 
 						if (filterResult.Type != SmtpResultType.Success)
 						{
-                            processor.Transaction = null;
-                            await processor.WriteCode(554,
+							processor.Transaction = null;
+							await processor.WriteCode(554,
 								filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 								string.IsNullOrWhiteSpace(filterResult.FailMessage)
 									? "Delivery not authorized, message refused"
@@ -177,22 +178,22 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 						}
 					}
 
-                    var delivery = (MailTransaction)processor.Transaction.Clone();
-                    processor.Transaction = null;
+					var delivery = (MailTransaction)processor.Transaction.Clone();
+					processor.Transaction = null;
 
-                    _ = processor.Server.DeliverMessage(delivery);
+					_ = processor.Server.DeliverMessage(delivery);
 
 					await processor.WriteCode(250, "2.3.0");
 					return;
 				}
 
-                processor.Counter += (ulong)dt.Length;
-                if (processor.Server.Options.MessageCharactersLimit == 0 ||
-                    processor.Server.Options.MessageCharactersLimit >= processor.Counter)
-                {
-                    processor.DataBuilder!.AppendLine(dt);
-                }
-            }
+				processor.Counter += (ulong)dt.Length;
+				if (processor.Server.Options.MessageCharactersLimit == 0 ||
+				    processor.Server.Options.MessageCharactersLimit >= processor.Counter)
+				{
+					processor.DataBuilder!.AppendLine(dt);
+				}
+			}
 		}
 
 		private static string? ProcessAddress(string data)
@@ -202,7 +203,18 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			var address = data[(data.IndexOf("<", StringComparison.Ordinal) + 1)..];
 			address = address[..address.IndexOf(">", StringComparison.Ordinal)];
 
-			return string.IsNullOrWhiteSpace(address) ? null : address;
+			if (string.IsNullOrWhiteSpace(address))
+				return null;
+
+			if (address.Count(x => x == '@') != 1)
+				return null;
+
+			var lastDotIndex = address.LastIndexOf('.');
+
+			if (lastDotIndex == -1 || lastDotIndex < address.IndexOf('@'))
+				return null;
+
+			return address;
 		}
 	}
 }
