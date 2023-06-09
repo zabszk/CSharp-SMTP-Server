@@ -16,6 +16,7 @@ namespace CSharp_SMTP_Server
 	/// Instance of the SMTP server
 	/// </summary>
 	// ReSharper disable once InconsistentNaming
+	// ReSharper disable once ClassNeverInstantiated.Global
 	public class SMTPServer : IDisposable
 	{
 		/// <summary>
@@ -89,11 +90,11 @@ namespace CSharp_SMTP_Server
 
 					if (parameter.RegularPorts != null)
 						foreach (var port in parameter.RegularPorts)
-							_listeners.Add(new Listener(parameter.IpAddress, port, this, false));
+							_listeners.Add(new Listener(parameter.IpAddress, port, this, false, parameter.DualMode));
 
 					if (parameter.TlsPorts != null)
 						foreach (var port in parameter.TlsPorts)
-							_listeners.Add(new Listener(parameter.IpAddress, port, this, true));
+							_listeners.Add(new Listener(parameter.IpAddress, port, this, true, parameter.DualMode));
 				}
 		}
 
@@ -146,9 +147,10 @@ namespace CSharp_SMTP_Server
 		/// <param name="ipAddress">Listening IP address</param>
 		/// <param name="port">Listening port</param>
 		/// <param name="tls">Whether listener always uses TLS</param>
-		public void AddListener(IPAddress ipAddress, ushort port, bool tls)
+		/// <param name="dualMode">Whether socket should use DualMode (listen on both IPv4 and IPv6 address). Works only if ipAddress is set to IPAddress.IPv6Any.</param>
+		public void AddListener(IPAddress ipAddress, ushort port, bool tls, bool dualMode = false)
 		{
-			var l = new Listener(ipAddress, port, this, tls);
+			var l = new Listener(ipAddress, port, this, tls, dualMode);
 			_listeners.Add(l);
 
 			if (_started)

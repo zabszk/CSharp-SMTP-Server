@@ -73,9 +73,10 @@ public class DmarcValidator
 				PublicSuffixes.Add(line);
 			}
 		}
-		finally
+		catch (Exception)
 		{
 			_publicSuffixesLoaded = false;
+			throw;
 		}
 	}
 
@@ -84,9 +85,13 @@ public class DmarcValidator
 	/// </summary>
 	/// <param name="domain">Domain to process</param>
 	/// <returns>Organizational Domain</returns>
+	/// <exception cref="Exception">Returned if DMARC Validator was never initialized.</exception>
 	// ReSharper disable once MemberCanBePrivate.Global
 	public static string GetOrganizationalDomain(string domain)
 	{
+		if (!_publicSuffixesLoaded)
+			throw new Exception("Suffix list is not loaded, because DMARC Validator was never initialized.");
+
 		var sp = domain.Split('.', StringSplitOptions.RemoveEmptyEntries);
 
 		if (sp.Length <= 2)
@@ -109,8 +114,12 @@ public class DmarcValidator
 	/// </summary>
 	/// <param name="transaction">Transaction to validate</param>
 	/// <returns>Validation result</returns>
+	/// <exception cref="Exception">Returned if DMARC Validator was never initialized.</exception>
 	public async Task<ValidationResult> ValidateTransaction(MailTransaction transaction)
 	{
+		if (!_publicSuffixesLoaded)
+			throw new Exception("Suffix list is not loaded, because DMARC Validator was never initialized.");
+
 		var from = transaction.GetFrom;
 
 		if (from == null)

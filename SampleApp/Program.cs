@@ -14,8 +14,7 @@ internal static class Program
 
 		var server = new SMTPServer(new[]
 		{
-			new ListeningParameters(IPAddress.Any, new ushort[] {25, 587}, new ushort[] {465}),
-			new ListeningParameters(IPAddress.IPv6Any, new ushort[] {25, 587}, new ushort[] {465})
+			new ListeningParameters(IPAddress.IPv6Any, new ushort[] {25, 587}, new ushort[] {465}, true)
 		}, new ServerOptions {ServerName = "Test SMTP Server", RequireEncryptionForAuth = false}, new DeliveryInterface(), new LoggerInterface());
 		//with TLS:
 		//}, new ServerOptions() { ServerName = "Test SMTP Server", RequireEncryptionForAuth = true}, new DeliveryInterface(), new LoggerInterface(), new X509Certificate2("PathToCertWithKey.pfx"));

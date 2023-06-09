@@ -16,6 +16,8 @@ namespace CSharp_SMTP_Server.Networking
 {
 	internal class ClientProcessor : IDisposable
 	{
+		private static readonly LingerOption Reset = new (true, 0);
+
 		internal ClientProcessor(TcpClient c, Listener l, bool secure)
 		{
 			_t = _ts.Token;
@@ -159,7 +161,7 @@ namespace CSharp_SMTP_Server.Networking
 				Server.LoggerInterface?.LogError("[Client write] Exception: " + e.Message);
 
 				_fails++;
-				if (_fails > 3) Dispose();
+				if (_fails > 3) Dispose(false, true);
 			}
 		}
 
@@ -293,10 +295,15 @@ namespace CSharp_SMTP_Server.Networking
 			}
 		}
 
-		public void Dispose()
+		public void Dispose() => Dispose(false, false);
+
+		public void Dispose(bool dontRemove, bool reset)
 		{
 			if (_dispose) return;
 			_dispose = true;
+
+			if (reset)
+				_client.LingerState = Reset;
 
 			_ts.Cancel();
 
@@ -314,7 +321,7 @@ namespace CSharp_SMTP_Server.Networking
 			_client.Close();
 			_client.Dispose();
 
-			if (_listener.ClientProcessors.Contains(this))
+			if (!dontRemove && _listener.ClientProcessors.Contains(this))
 				_listener.ClientProcessors.Remove(this);
 		}
 	}

@@ -16,14 +16,17 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly bool _secure;
 		private bool _dispose;
 
-		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure)
+		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure, bool dualMode)
 		{
 			Server = s;
 			_secure = secure;
 			ClientProcessors = new List<ClientProcessor>();
 
 			var ipEndPoint = new IPEndPoint(address, port);
-			_listener = new TcpListener(ipEndPoint);
+			_listener = new TcpListener(ipEndPoint)
+			{
+				Server = { DualMode = dualMode }
+			};
 			_listenerThread = new Thread(Listen)
 			{
 				Name = "Listening on port " + port,
@@ -65,7 +68,7 @@ namespace CSharp_SMTP_Server.Networking
 			_listener.Stop();
 
 			foreach (var processor in ClientProcessors)
-				processor.Dispose();
+				processor.Dispose(true, true);
 		}
 	}
 }
