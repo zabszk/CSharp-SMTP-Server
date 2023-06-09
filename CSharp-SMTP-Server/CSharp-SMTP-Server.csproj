@@ -48,6 +48,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="zabszk.DnsClient" Version="1.0.0" />
+    <PackageReference Include="zabszk.DnsClient" Version="1.0.1" />
   </ItemGroup>
 </Project>
