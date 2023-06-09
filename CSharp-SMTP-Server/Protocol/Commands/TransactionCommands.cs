@@ -191,7 +191,15 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					string received = string.Empty;
 
 					if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
-					else received = $"from {(processor.RemoteEndPoint == null ? "unknown" : processor.RemoteEndPoint.Address.ToString())} ";
+					else if (processor.RemoteEndPoint == null) received = "from unknown ";
+					else
+					{
+						var address = processor.RemoteEndPoint.Address;
+						if (address.IsIPv4MappedToIPv6)
+							address = address.MapToIPv4();
+
+						received = $"from {address} ";
+					}
 
 					received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
 

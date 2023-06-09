@@ -76,6 +76,9 @@ public class SpfValidator
 
 	private async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
 	{
+		if (ipAddress.IsIPv4MappedToIPv6)
+			ipAddress = ipAddress.MapToIPv4();
+
 		var txtQuery = await DnsClient.Query(domain, QType.TXT);
 
 		if (txtQuery.ErrorCode != DnsErrorCode.NoError || txtQuery.Records == null)
