@@ -98,7 +98,7 @@ public class DmarcValidator
 		while (PublicSuffixes.Contains(orgDomain) && i > 0)
 		{
 			i--;
-			orgDomain = domain[i] + "." + orgDomain;
+			orgDomain = sp[i] + "." + orgDomain;
 		}
 
 		return orgDomain;
