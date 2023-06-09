@@ -1,23 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
-    <Authors>Łukasz Jurczyk</Authors>
-    <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE</PackageLicenseUrl>
-    <Copyright>Copyright by Łukasz Jurczyk, 2019-2023</Copyright>
-    <LangVersion>10</LangVersion>
-    <PackageVersion>1.1.3</PackageVersion>
-    <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
-    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
-    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net7.0</TargetFramework>
+        <Authors>Łukasz Jurczyk</Authors>
+        <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE</PackageLicenseUrl>
+        <Copyright>Copyright by Łukasz Jurczyk, 2019-2023</Copyright>
+        <LangVersion>10</LangVersion>
+        <PackageVersion>1.1.3</PackageVersion>
+        <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
+        <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
+        <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\CSharp-SMTP-Server\CSharp-SMTP-Server.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\CSharp-SMTP-Server\CSharp-SMTP-Server.csproj"/>
+    </ItemGroup>
 
 </Project>
