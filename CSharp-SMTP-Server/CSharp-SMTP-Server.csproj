@@ -23,7 +23,7 @@
     <Nullable>enable</Nullable>
     <PackageVersion>1.1.2</PackageVersion>
     <Title>CSharp SMTP Server</Title>
-	<GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
+    <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     <PackageTags>smtp;smtp-server;spf</PackageTags>
