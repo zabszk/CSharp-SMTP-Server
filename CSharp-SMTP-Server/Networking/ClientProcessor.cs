@@ -200,7 +200,7 @@ namespace CSharp_SMTP_Server.Networking
 			if (command.Length != response.Length)
 				data = response[command.Length..].TrimStart();
 
-			switch (command)
+			switch (command.Trim())
 			{
 				case "EHLO":
 					Transaction = null;

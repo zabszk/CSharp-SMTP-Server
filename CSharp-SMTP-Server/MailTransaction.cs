@@ -79,7 +79,13 @@ namespace CSharp_SMTP_Server
 		/// <returns>Email body</returns>
 		public string? GetMessageBody() => RawBody == null ? null : string.Join("\r\n", RawBody.Split('\n').Skip(BodyStartIndex).Select(x => x.TrimEnd('\r')));
 
-		private IEnumerable<string> ParseAddresses(string header)
+		/// <summary>
+		/// Returns email addresses from a header
+		/// </summary>
+		/// <param name="header">Header to parse</param>
+		/// <returns>Email addresses</returns>
+		// ReSharper disable once MemberCanBePrivate.Global
+		public IEnumerable<string> ParseAddresses(string header)
 		{
 			if (!TryGetHeader(header, out var t)) yield break;
 
@@ -94,7 +100,14 @@ namespace CSharp_SMTP_Server
 			}
 		}
 
-		private bool TryGetHeader(string header, out string? value)
+		/// <summary>
+		/// Attempts to get a header from the message
+		/// </summary>
+		/// <param name="header">Header name</param>
+		/// <param name="value">Returned header value</param>
+		/// <returns>Indicates whether the operation was successful or not</returns>
+		// ReSharper disable once MemberCanBePrivate.Global
+		public bool TryGetHeader(string header, out string? value)
 		{
 			value = null;
 
@@ -106,6 +119,19 @@ namespace CSharp_SMTP_Server
 
 			value = tt[0];
 			return true;
+		}
+
+		/// <summary>
+		/// Returns amount of a specified header
+		/// </summary>
+		/// <param name="header">Header to count</param>
+		/// <returns>Amount of the specified header</returns>
+		public int HeadersAmount(string header)
+		{
+			if (Headers == null || !Headers.TryGetValue(header, out var tt))
+				return 0;
+
+			return tt.Count;
 		}
 
 		/// <summary>

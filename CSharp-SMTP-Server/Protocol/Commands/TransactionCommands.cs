@@ -202,6 +202,12 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 					if (processor.Server.Options.ValidateDMARC)
 					{
+						if (processor.Transaction.HeadersAmount("From") > 1)
+						{
+							await processor.WriteCode(554, "5.7.1", "Message must not contain more than one From header, message refused");
+							return;
+						}
+
 						if (processor.Username != null)
 							processor.Transaction.DMARCValidationResult = ValidationResult.UserAuthenticated;
 						else
