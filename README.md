@@ -19,6 +19,10 @@ This server is only returning all received emails to interface provided by the s
 * RFC 7372 (Email Authentication Status Codes)
 * RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC)) [Partially Supported]
 
+# 3rd party services usage
+* This library by default uses Cloudflare Public DNS Servers (1.1.1.1) to perform SPF and DMARC validation. IP address of the DNS server can be changed or both validations can be disabled using ServerOptions class.
+* This library by default downloads Public Suffix List managed by Mozilla Foundation from GitHub. The list is licensed under Mozilla Public License v. 2.0. The download URL can be changed in ServerOptions class. The list is NOT downloaded if DnsServerEndpoint is set to null in ServerOptions class.
+
 # Basic usage
 ```cs
 var server = new SMTPServer(new[]

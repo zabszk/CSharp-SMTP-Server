@@ -45,7 +45,7 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// URL of list of all public suffixes of domains
 		/// </summary>
-		public string PublicSuffixList = "https://publicsuffix.org/list/public_suffix_list.dat";
+		public string PublicSuffixList = "https://raw.githubusercontent.com/publicsuffix/list/master/public_suffix_list.dat";
 
 		/// <summary>
 		/// Enables or disables SPF validation of emails sent by unauthenticated users.
