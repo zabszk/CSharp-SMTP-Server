@@ -9,7 +9,7 @@
     <PackageLicenseUrl>https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE</PackageLicenseUrl>
     <Copyright>Copyright by Łukasz Jurczyk, 2019-2023</Copyright>
     <LangVersion>10</LangVersion>
-    <PackageVersion>1.1.2</PackageVersion>
+    <PackageVersion>1.1.3</PackageVersion>
     <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
