@@ -21,7 +21,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
-    <PackageVersion>1.1.4</PackageVersion>
+    <PackageVersion>1.1.5</PackageVersion>
     <Title>CSharp SMTP Server</Title>
     <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
