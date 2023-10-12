@@ -30,7 +30,7 @@ namespace CSharp_SMTP_Server.Misc
 
 				for (var j = bodyStartIndex + 1; j < split.Length; j++)
 				{
-					if (!char.IsWhiteSpace(split[j][0]) || string.IsNullOrWhiteSpace(split[j]))
+					if (string.IsNullOrWhiteSpace(split[j]) || !char.IsWhiteSpace(split[j][0]))
 						break;
 
 					var tr = split[j].TrimEnd();
