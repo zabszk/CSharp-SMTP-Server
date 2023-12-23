@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol;
@@ -76,11 +77,13 @@ namespace CSharp_SMTP_Server
 			Certificate = certificate;
 
 			if (Options.DnsServerEndpoint != null)
-			{
 				DnsClient = new DnsClient.DnsClient(Options.DnsServerEndpoint, new DnsClientOptions {ErrorLogging = new DnsLogger(this)});
+
+			if (Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
 				SpfValidator = new SpfValidator(this);
+
+			if (Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)
 				DmarcValidator = new DmarcValidator(this);
-			}
 
 			if (parameters != null)
 				foreach (var parameter in parameters)
@@ -103,6 +106,7 @@ namespace CSharp_SMTP_Server
 		/// </summary>
 		public void Start()
 		{
+			DmarcValidator?.Start();
 			_started = true;
 			_listeners.ForEach(listener => listener.Start());
 		}

@@ -35,7 +35,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									await processor.WriteCode(554,
 										result.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(result.FailMessage)
-											? "Delivery not authorized (MAIL FROM address not allowed), message refused"
+											? "Delivery not authorized (MAIL FROM address not allowed), message rejected"
 											: result.FailMessage);
 									return;
 								}
@@ -45,20 +45,25 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 							if (processor.Username != null)
 								spfValidation = ValidationResult.UserAuthenticated;
-							else if (processor.Server.Options.ValidateSPF && processor.RemoteEndPoint != null)
+							else if (processor.Server.Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
 							{
 								if (processor.SpfResultsCache!.TryGetValue(domain!, out var spfRes))
 									spfValidation = spfRes;
 								else
 								{
-									spfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint.Address, domain!);
+									spfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint!.Address, domain!);
 									processor.SpfResultsCache.Add(domain!, spfValidation);
 								}
 
-								if (spfValidation == ValidationResult.Fail)
+								switch (spfValidation)
 								{
-									await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF, message refused");
-									return;
+									case ValidationResult.Fail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfFail:
+										await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (Result: Fail), message rejected");
+										return;
+
+									case ValidationResult.Softfail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfSoftfail:
+										await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (Result: Softfail), message rejected");
+										return;
 								}
 							}
 
@@ -71,7 +76,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									await processor.WriteCode(554,
 										result.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(result.FailMessage)
-											? "Delivery not authorized (mail sender not allowed), message refused"
+											? "Delivery not authorized (mail sender not allowed), message rejected"
 											: result.FailMessage);
 									return;
 								}
@@ -114,7 +119,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									await processor.WriteCode(550,
 										filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(filterResult.FailMessage)
-											? "Delivery to this recipients is not allowed, message refused"
+											? "Delivery to this recipients is not allowed, message rejected"
 											: filterResult.FailMessage);
 									return;
 								}
@@ -207,11 +212,11 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					if (processor.Transaction.SPFValidationResult != ValidationResult.UserAuthenticated && processor.Transaction.SPFValidationResult != ValidationResult.CheckDisabled)
 						processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SPFValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}");
 
-					if (processor.Server.Options.ValidateDMARC)
+					if (processor.Server.Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)
 					{
 						if (processor.Transaction.ParsedMessage.From.Count > 1)
 						{
-							await processor.WriteCode(554, "5.7.1", "Message must not contain more than one From header, message refused");
+							await processor.WriteCode(554, "5.7.1", "Message must not contain more than one From header, message rejected");
 							return;
 						}
 
@@ -222,10 +227,15 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							var dmarcValidation = await processor.Server.DmarcValidator!.ValidateTransaction(processor.Transaction);
 							processor.Transaction.DMARCValidationResult = dmarcValidation;
 
-							if (dmarcValidation == ValidationResult.Fail)
+							switch (dmarcValidation)
 							{
-								await processor.WriteCode(554, "5.7.1", "Delivery not authorized by DMARC, message refused");
-								return;
+								case ValidationResult.Fail when processor.Server.Options.MailAuthenticationOptions.DmarcOptions.RejectDmarcReject:
+									await processor.WriteCode(554, "5.7.23", "Delivery not authorized by DMARC (Action: Reject), message rejected");
+									return;
+
+								case ValidationResult.Softfail when processor.Server.Options.MailAuthenticationOptions.DmarcOptions.RejectDmarcQuarantine:
+									await processor.WriteCode(554, "5.7.23", "Delivery not authorized by DMARC (Action: Quarantine), message rejected");
+									return;
 							}
 
 							ProcessAddress(processor.Transaction.GetFrom, out var fromDomain);
@@ -244,7 +254,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							await processor.WriteCode(554,
 								filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 								string.IsNullOrWhiteSpace(filterResult.FailMessage)
-									? "Delivery not authorized, message refused"
+									? "Delivery not authorized, message rejected"
 									: filterResult.FailMessage);
 							return;
 						}

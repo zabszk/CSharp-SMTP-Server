@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using CSharp_SMTP_Server;
+using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Networking;
 
 namespace SampleApp;
