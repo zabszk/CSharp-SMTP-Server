@@ -22,7 +22,7 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// Library version
 		/// </summary>
-		public const string VersionString = "1.1.5";
+		public const string VersionString = "1.1.6";
 
 		/// <summary>
 		/// Server options
