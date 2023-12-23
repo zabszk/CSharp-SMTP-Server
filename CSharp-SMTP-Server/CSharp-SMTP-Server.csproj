@@ -19,7 +19,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <SignAssembly>false</SignAssembly>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <LangVersion>10</LangVersion>
+    <LangVersion>11</LangVersion>
     <Nullable>enable</Nullable>
     <PackageVersion>1.1.5</PackageVersion>
     <Title>CSharp SMTP Server</Title>
@@ -44,6 +44,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="MimeKit" Version="4.3.0" />
     <PackageReference Include="zabszk.DnsClient" Version="1.0.1" />
   </ItemGroup>
 </Project>

@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol;
+using MimeKit;
 
 namespace CSharp_SMTP_Server
 {
@@ -19,6 +22,7 @@ namespace CSharp_SMTP_Server
 			SPFValidationResult = validationResult;
 			DeliverTo = new List<string>();
 			AuthenticatedUser = null;
+			RawBody = string.Empty;
 		}
 
 		/// <summary>
@@ -33,19 +37,14 @@ namespace CSharp_SMTP_Server
 		public readonly string FromDomain;
 
 		/// <summary>
-		/// Raw message body (with headers)
+		/// Raw message body
 		/// </summary>
-		public string? RawBody;
-
-		/// <summary>
-		/// Index on which body of the message starts (after the headers)
-		/// </summary>
-		public int BodyStartIndex { get; internal set; }
+		public string RawBody;
 
 		/// <summary>
 		/// Subject of the message
 		/// </summary>
-		public string? Subject => TryGetHeader("Subject", out var value) ? value : null;
+		public string? Subject => ParsedMessage.Subject;
 
 		/// <summary>
 		/// Recipients specified in the transaction
@@ -56,88 +55,44 @@ namespace CSharp_SMTP_Server
 		/// Sender of the message specified in the header
 		/// Note that this is NOT validated using SPF.
 		/// </summary>
-		public string? GetFrom => TryGetHeader("From", out var value) ? value : null;
+		public string? GetFrom => ParsedMessage.From.Count > 0 ? ParsedMessage.From[0].Name : null;
 
 		/// <summary>
 		/// Recipients specified in the header (To)
 		/// </summary>
-		public IEnumerable<string> GetTo() => ParseAddresses("To");
+		public IEnumerable<string> GetTo() => ParsedMessage.To.Select(x => x.Name);
 
 		/// <summary>
 		/// Recipients specified in the header (CC)
 		/// </summary>
-		public IEnumerable<string> GetCc() => ParseAddresses("cc");
+		public IEnumerable<string> GetCc() => ParsedMessage.Cc.Select(x => x.Name);
 
 		/// <summary>
 		/// Recipients specified in the header (BCC)
 		/// </summary>
-		public IEnumerable<string> GetBcc() => ParseAddresses("bcc");
+		public IEnumerable<string> GetBcc() => ParsedMessage.Bcc.Select(x => x.Name);
 
 		/// <summary>
 		/// Returns email body without headers
 		/// </summary>
 		/// <returns>Email body</returns>
-		public string? GetMessageBody() => RawBody == null ? null : string.Join("\r\n", RawBody.Split('\n').Skip(BodyStartIndex).Select(x => x.TrimEnd('\r')));
+		public string? GetMessageBody() => ParsedMessage.TextBody ?? ParsedMessage.HtmlBody;
 
 		/// <summary>
-		/// Returns email addresses from a header
+		/// Parsed email message
 		/// </summary>
-		/// <param name="header">Header to parse</param>
-		/// <returns>Email addresses</returns>
-		// ReSharper disable once MemberCanBePrivate.Global
-		public IEnumerable<string> ParseAddresses(string header)
+		public MimeMessage ParsedMessage
 		{
-			if (!TryGetHeader(header, out var t)) yield break;
-
-			while (t!.Contains('<', StringComparison.Ordinal))
+			get
 			{
-				if (!t.Contains('>', StringComparison.Ordinal)) yield break;
-				var address = t[(t.IndexOf("<", StringComparison.Ordinal) + 1)..];
-				var i = address.IndexOf(">", StringComparison.Ordinal);
-				yield return address[..i];
-				if (i + 1 >= t.Length) yield break;
-				t = address[(i + 1)..];
+				if (_parsedMessage != null) return _parsedMessage;
+
+				_parsedMessage = MimeMessage.Load(new MemoryStream(Encoding.UTF8.GetBytes(RawBody)));
+				return _parsedMessage;
 			}
 		}
 
-		/// <summary>
-		/// Attempts to get a header from the message
-		/// </summary>
-		/// <param name="header">Header name</param>
-		/// <param name="value">Returned header value</param>
-		/// <returns>Indicates whether the operation was successful or not</returns>
-		// ReSharper disable once MemberCanBePrivate.Global
-		public bool TryGetHeader(string header, out string? value)
-		{
-			value = null;
-
-			if (Headers == null || !Headers.TryGetValue(header, out var tt))
-				return false;
-
-			if (tt.Count != 1)
-				return false;
-
-			value = tt[0];
-			return true;
-		}
-
-		/// <summary>
-		/// Returns amount of a specified header
-		/// </summary>
-		/// <param name="header">Header to count</param>
-		/// <returns>Amount of the specified header</returns>
-		public int HeadersAmount(string header)
-		{
-			if (Headers == null || !Headers.TryGetValue(header, out var tt))
-				return 0;
-
-			return tt.Count;
-		}
-
-		/// <summary>
-		/// Email headers
-		/// </summary>
-		public Dictionary<string, List<string>>? Headers { get; internal set; }
+		private MimeMessage? _parsedMessage;
 
 		/// <summary>
 		/// Endpoint of the client/server sending the message
@@ -166,7 +121,19 @@ namespace CSharp_SMTP_Server
 		/// </summary>
 		// ReSharper disable once MemberCanBePrivate.Global
 		// ReSharper disable once InconsistentNaming
+		// ReSharper disable once UnusedAutoPropertyAccessor.Global
 		public ValidationResult DMARCValidationResult { get; internal set; }
+
+		/// <summary>
+		/// Adds a header to the email message
+		/// </summary>
+		/// <param name="name">Header name</param>
+		/// <param name="value">Header value</param>
+		public void AddHeader(string name, string value)
+		{
+			RawBody = $"{name}: {value}\r\n{RawBody}";
+			ParsedMessage.Headers.Add(name, value);
+		}
 
 		/// <inheritdoc />
 		public object Clone()
@@ -175,11 +142,10 @@ namespace CSharp_SMTP_Server
 			{
 				AuthenticatedUser = AuthenticatedUser,
 				RawBody = RawBody,
-				Headers = Headers,
+				_parsedMessage = ParsedMessage,
 				RemoteEndPoint = RemoteEndPoint,
 				DeliverTo = DeliverTo,
-				Encryption = Encryption,
-				BodyStartIndex = BodyStartIndex
+				Encryption = Encryption
 			};
 		}
 	}

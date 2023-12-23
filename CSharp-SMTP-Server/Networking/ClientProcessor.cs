@@ -25,7 +25,6 @@ namespace CSharp_SMTP_Server.Networking
 			_client = c;
 			_innerStream = c.GetStream();
 			_stream = _innerStream;
-			_encoder = new UTF8Encoding();
 			if (_client.Client.RemoteEndPoint is IPEndPoint ipe)
 				RemoteEndPoint = ipe;
 			Encryption = ConnectionEncryption.Plaintext;
@@ -49,7 +48,6 @@ namespace CSharp_SMTP_Server.Networking
 		private Stream _stream;
 		private StreamReader? _reader;
 		private readonly Listener _listener;
-		private readonly UTF8Encoding _encoder;
 		private bool _greetSent;
 		private int _fails;
 
@@ -135,7 +133,7 @@ namespace CSharp_SMTP_Server.Networking
 				}
 				catch (Exception e)
 				{
-					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.GetType().FullName + ", " + e.Message);
+					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.GetType().FullName + ", " + e.StackTrace + ", " + e.Message);
 
 					_fails++;
 
@@ -153,7 +151,7 @@ namespace CSharp_SMTP_Server.Networking
 			try
 			{
 				if (!_stream.CanWrite) return;
-				var encoded = _encoder.GetBytes(text + "\r\n");
+				var encoded = Encoding.UTF8.GetBytes(text + "\r\n");
 				await _stream.WriteAsync(encoded);
 			}
 			catch (Exception e)
