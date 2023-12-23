@@ -212,6 +212,17 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					if (processor.Transaction.SPFValidationResult != ValidationResult.UserAuthenticated && processor.Transaction.SPFValidationResult != ValidationResult.CheckDisabled)
 						processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SPFValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}");
 
+					if (processor.Server.Options.MailAuthenticationOptions.ValidateDkim)
+					{
+						var dkimValidation = await processor.Server.DkimValidator!.ValidateTransaction(processor.Transaction);
+						processor.Transaction.DKIMValidationResult = dkimValidation;
+						processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dkim={dkimValidation.ToString().ToLowerInvariant()}");
+
+						//TODO Provide more information
+						//TODO Add DMARC validation of DKIM domain
+						//TODO Use the SPF-related configs
+					}
+
 					if (processor.Server.Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)
 					{
 						if (processor.Transaction.ParsedMessage.From.Count > 1)

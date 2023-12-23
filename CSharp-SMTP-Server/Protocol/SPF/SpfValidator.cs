@@ -72,7 +72,7 @@ public class SpfValidator
 	/// <param name="ipAddress">IP address of the remote SMTP server</param>
 	/// <param name="domain">Email sender domain</param>
 	/// <returns>SPF validation result</returns>
-	public async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain) => await CheckHost(ipAddress, domain, 0);
+	public Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain) => CheckHost(ipAddress, domain, 0);
 
 	private async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
 	{

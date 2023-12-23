@@ -117,6 +117,14 @@ namespace CSharp_SMTP_Server
 		public readonly ValidationResult SPFValidationResult;
 
 		/// <summary>
+		/// DKIM validation result
+		/// </summary>
+		// ReSharper disable once MemberCanBePrivate.Global
+		// ReSharper disable once InconsistentNaming
+		// ReSharper disable once UnusedAutoPropertyAccessor.Global
+		public ValidationResult DKIMValidationResult { get; internal set; }
+
+		/// <summary>
 		/// DMARC validation result
 		/// </summary>
 		// ReSharper disable once MemberCanBePrivate.Global

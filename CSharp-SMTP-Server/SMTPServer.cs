@@ -7,6 +7,7 @@ using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol;
+using CSharp_SMTP_Server.Protocol.DKIM;
 using CSharp_SMTP_Server.Protocol.SPF;
 using CSharp_SMTP_Server.Protocol.DMARC;
 using DnsClient;
@@ -39,6 +40,11 @@ namespace CSharp_SMTP_Server
 		/// SPF validator
 		/// </summary>
 		public readonly SpfValidator? SpfValidator;
+
+		/// <summary>
+		/// DKIM validator
+		/// </summary>
+		public readonly DkimValidator? DkimValidator;
 
 		/// <summary>
 		/// DMARC validator
@@ -77,7 +83,12 @@ namespace CSharp_SMTP_Server
 			Certificate = certificate;
 
 			if (Options.DnsServerEndpoint != null)
+			{
 				DnsClient = new DnsClient.DnsClient(Options.DnsServerEndpoint, new DnsClientOptions {ErrorLogging = new DnsLogger(this)});
+
+				if (Options.MailAuthenticationOptions.ValidateDkim)
+					DkimValidator = new DkimValidator(DnsClient);
+			}
 
 			if (Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
 				SpfValidator = new SpfValidator(this);

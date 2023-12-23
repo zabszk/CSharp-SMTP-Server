@@ -11,7 +11,7 @@ namespace CSharp_SMTP_Server.Protocol.DMARC;
 /// <summary>
 /// DMARC validator
 /// </summary>
-public class DmarcValidator
+public class DmarcValidator : IMailValidator
 {
 	private readonly SMTPServer _server;
 
