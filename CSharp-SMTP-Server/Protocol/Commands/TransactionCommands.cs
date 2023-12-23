@@ -35,7 +35,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									await processor.WriteCode(554,
 										result.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(result.FailMessage)
-											? "Delivery not authorized, message refused"
+											? "Delivery not authorized (MAIL FROM address not allowed), message refused"
 											: result.FailMessage);
 									return;
 								}
@@ -71,7 +71,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									await processor.WriteCode(554,
 										result.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(result.FailMessage)
-											? "Delivery not authorized, message refused"
+											? "Delivery not authorized (mail sender not allowed), message refused"
 											: result.FailMessage);
 									return;
 								}
@@ -114,7 +114,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									await processor.WriteCode(550,
 										filterResult.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(filterResult.FailMessage)
-											? "Delivery not authorized, message refused"
+											? "Delivery to this recipients is not allowed, message refused"
 											: filterResult.FailMessage);
 									return;
 								}
@@ -187,7 +187,6 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 						return;
 					}
 
-					processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.RawBody, out _);
 					string received = string.Empty;
 
 					if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
@@ -203,14 +202,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 					received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
 
-					EmailParser.AddHeader("Received", received, ref processor.Transaction.RawBody);
+					processor.Transaction.AddHeader("Received", received);
 
 					if (processor.Transaction.SPFValidationResult != ValidationResult.UserAuthenticated && processor.Transaction.SPFValidationResult != ValidationResult.CheckDisabled)
-						EmailParser.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SPFValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}", ref processor.Transaction.RawBody);
+						processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SPFValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}");
 
 					if (processor.Server.Options.ValidateDMARC)
 					{
-						if (processor.Transaction.HeadersAmount("From") > 1)
+						if (processor.Transaction.ParsedMessage.From.Count > 1)
 						{
 							await processor.WriteCode(554, "5.7.1", "Message must not contain more than one From header, message refused");
 							return;
@@ -230,13 +229,10 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							}
 
 							ProcessAddress(processor.Transaction.GetFrom, out var fromDomain);
-							EmailParser.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dmarc={dmarcValidation.ToString().ToLowerInvariant()} header.from={fromDomain ?? "(none)"}", ref processor.Transaction.RawBody);
+							processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dmarc={dmarcValidation.ToString().ToLowerInvariant()} header.from={fromDomain ?? "(none)"}");
 						}
 					}
 					else processor.Transaction.DMARCValidationResult = ValidationResult.CheckDisabled;
-
-					processor.Transaction.Headers = EmailParser.ParseHeaders(processor.Transaction.RawBody, out var startIndex);
-					processor.Transaction.BodyStartIndex = startIndex;
 
 					if (processor.Server.Filter != null)
 					{

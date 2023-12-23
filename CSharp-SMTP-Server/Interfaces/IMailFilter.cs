@@ -28,7 +28,7 @@ namespace CSharp_SMTP_Server.Interfaces
 
 		/// <summary>
 		/// Called when client sets is checked by SPF.
-		/// This is NOT called when SPF validation equals \"Fail\".
+		/// This is NOT called when SPF validation equals to \"Fail\".
 		/// </summary>
 		/// <param name="source">\"From\" value</param>
 		/// <param name="ep">Remote endpoint of the connection</param>
