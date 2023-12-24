@@ -42,6 +42,18 @@ namespace CSharp_SMTP_Server.Config
 		public uint RecipientsLimit = 50;
 
 		/// <summary>
+		/// Maximum length of email address.
+		/// Default: 256
+		/// </summary>
+		public uint EmailAddressMaximumLength = 256;
+
+		/// <summary>
+		/// Maximum length of internet domain.
+		/// Default: 255
+		/// </summary>
+		public uint InternetDomainNameMaximumLength = 255;
+
+		/// <summary>
 		/// Configuration of email authentication.
 		/// </summary>
 		public readonly MailAuthenticationOptions MailAuthenticationOptions;

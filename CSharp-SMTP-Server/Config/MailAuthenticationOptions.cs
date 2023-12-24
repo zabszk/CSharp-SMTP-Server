@@ -13,7 +13,7 @@ public class MailAuthenticationOptions
 	/// <param name="spfOptions">Options of SPF mail authentication</param>
 	/// <param name="dkimOptions">Options of DKIM mail authentication</param>
 	/// <param name="dmarcOptions">Options of DMARC mail authentication</param>
-	public MailAuthenticationOptions(SpfOptions? spfOptions = null, DkimOptions? dkimOptions  = null, DmarcOptions? dmarcOptions = null)
+	public MailAuthenticationOptions(SpfOptions? spfOptions = null, DkimOptions? dkimOptions = null, DmarcOptions? dmarcOptions = null)
 	{
 		SpfOptions = spfOptions ?? new();
 		DkimOptions = dkimOptions ?? new();
@@ -33,6 +33,7 @@ public class MailAuthenticationOptions
 	/// <summary>
 	/// Rejects emails from domains that didn't pass both SPF and DKIM configured.
 	/// </summary>
+	// ReSharper disable once FieldCanBeMadeReadOnly.Global
 	public bool RejectUnauthenticatedEmails = false;
 
 	/// <summary>
@@ -99,6 +100,11 @@ public class SpfOptions
 	/// If enabled, emails that passed DKIM validation will be delivered regardless of SPF validation "Softfail" result.
 	/// </summary>
 	public bool DkimPassOverridesSpfSoftfail = true;
+
+	/// <summary>
+	/// If enabled, address provided in HELO or EHLO command is authenticated using SPF.
+	/// </summary>
+	public bool AuthenticateEhloAddress = true;
 }
 
 /// <summary>

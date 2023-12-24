@@ -2,8 +2,9 @@
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using CSharp_SMTP_Server.Misc;
+using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Networking;
+using CSharp_SMTP_Server.Protocol.DKIM;
 using CSharp_SMTP_Server.Protocol.Responses;
 using static System.FormattableString;
 
@@ -22,7 +23,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 				case "MAIL FROM":
 					{
-						var address = ProcessAddress(data, out var domain);
+						var address = ProcessAddress(processor.Server.Options, data, out var domain);
 						if (address == null) await processor.WriteCode(501, "5.5.2");
 						else
 						{
@@ -42,12 +43,42 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							}
 
 							var spfValidation = ValidationResult.CheckDisabled;
+							var ehloSpfValidation = processor.SpfValidationResult;
 
 							if (processor.Username != null)
+							{
 								spfValidation = ValidationResult.UserAuthenticated;
+								ehloSpfValidation = ValidationResult.UserAuthenticated;
+							}
 							else if (processor.Server.Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
 							{
-								if (processor.SpfResultsCache!.TryGetValue(domain!, out var spfRes))
+								ValidationResult spfRes;
+
+								if (processor.Server.Options.MailAuthenticationOptions.SpfOptions.AuthenticateEhloAddress && ehloSpfValidation == ValidationResult.CheckDisabled && processor.Transaction!.EhloDomain != null)
+								{
+									if (processor.SpfResultsCache!.TryGetValue(processor.Transaction!.EhloDomain, out spfRes))
+										ehloSpfValidation = spfRes;
+									else
+									{
+										ehloSpfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint!.Address, processor.Transaction!.EhloDomain);
+										processor.SpfResultsCache.Add(processor.Transaction!.EhloDomain, ehloSpfValidation);
+									}
+
+									processor.SpfValidationResult = ehloSpfValidation;
+
+									switch (ehloSpfValidation)
+									{
+										case ValidationResult.Fail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfFail:
+											await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (EHLO/HELO Domain Result: Fail), message rejected");
+											return;
+
+										case ValidationResult.Softfail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfSoftfail:
+											await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (EHLO/HELO Domain Result: Softfail), message rejected");
+											return;
+									}
+								}
+
+								if (processor.SpfResultsCache!.TryGetValue(domain!, out spfRes))
 									spfValidation = spfRes;
 								else
 								{
@@ -57,11 +88,11 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 								switch (spfValidation)
 								{
-									case ValidationResult.Fail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfFail:
+									case ValidationResult.Fail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfFail && (!processor.Server.Options.MailAuthenticationOptions.SpfOptions.DkimPassOverridesSpfFail || !processor.Server.Options.MailAuthenticationOptions.DkimOptions.ValidateDkim):
 										await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (Result: Fail), message rejected");
 										return;
 
-									case ValidationResult.Softfail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfSoftfail:
+									case ValidationResult.Softfail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfSoftfail && (!processor.Server.Options.MailAuthenticationOptions.SpfOptions.DkimPassOverridesSpfSoftfail || !processor.Server.Options.MailAuthenticationOptions.DkimOptions.ValidateDkim):
 										await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (Result: Softfail), message rejected");
 										return;
 								}
@@ -82,7 +113,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 								}
 							}
 
-							processor.Transaction = new MailTransaction(address, domain!, spfValidation)
+							processor.Transaction = new MailTransaction(processor.EhloDomain, address, domain!, spfValidation, ehloSpfValidation)
 							{
 								RemoteEndPoint = processor.RemoteEndPoint,
 								Encryption = processor.Encryption
@@ -100,7 +131,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							return;
 						}
 
-						var address = ProcessAddress(data, out _);
+						var address = ProcessAddress(processor.Server.Options, data, out _);
 						if (address == null) await processor.WriteCode(501);
 						else
 						{
@@ -195,14 +226,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					string received = string.Empty;
 
 					if (!string.IsNullOrEmpty(processor.Username)) processor.Transaction.AuthenticatedUser = processor.Username;
-					else if (processor.RemoteEndPoint == null) received = "from unknown ";
+					else if (processor.RemoteEndPoint == null) received = "from (unknown) ";
 					else
 					{
 						var address = processor.RemoteEndPoint.Address;
 						if (address.IsIPv4MappedToIPv6)
 							address = address.MapToIPv4();
 
-						received = $"from {address} ";
+						received = processor.Transaction.EhloSPFValidationResult == ValidationResult.Pass ? $"from {processor.Transaction.EhloDomain} ({address}) " : $"from {address} ";
 					}
 
 					received += Invariant($"by {processor.Server.Options.ServerName} with SMTP; {DateTime.UtcNow:ddd, dd MMM yyyy HH:mm:ss} +0000 (UTC)");
@@ -215,7 +246,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					if (processor.Server.Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
 					{
 						if (processor.Username != null)
-							processor.Transaction.DMARCValidationResult = ValidationResult.UserAuthenticated;
+							processor.Transaction.DKIMValidationResult = new DkimValidator.DkimValidationResult(ValidationResult.UserAuthenticated);
 						else
 						{
 							var dkimValidation = await processor.Server.DkimValidator!.ValidateTransaction(processor.Transaction);
@@ -227,8 +258,33 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 								sigStatus = $" ({dkimValidation.RsaKeySize}-bit key)";
 
 							processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dkim={dkimValidation.ToString().ToLowerInvariant()}{sigStatus} header.d={dkimValidation.Domain} header.s={dkimValidation.Selector}{dkimValidation.SignatureAlgorithmHeader}");
+						}
+					}
 
-							//TODO Use the SPF-related configs
+					if (processor.Transaction.DKIMValidationResult.ValidationResult != ValidationResult.Pass && processor.Transaction.DKIMValidationResult.ValidationResult != ValidationResult.UserAuthenticated)
+					{
+						switch (processor.Transaction.SPFValidationResult)
+						{
+							case ValidationResult.Fail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfFail:
+								await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (Result: Fail), message rejected");
+								return;
+
+							case ValidationResult.Softfail when processor.Server.Options.MailAuthenticationOptions.SpfOptions.RejectSpfSoftfail:
+								await processor.WriteCode(554, "5.7.23", "Delivery not authorized by SPF (Result: Softfail), message rejected");
+								return;
+
+							case ValidationResult.None when processor.Server.Options.MailAuthenticationOptions.RejectUnauthenticatedEmails:
+							case ValidationResult.Neutral when processor.Server.Options.MailAuthenticationOptions.RejectUnauthenticatedEmails:
+								await processor.WriteCode(554, "5.7.23", "Delivery not authorized - SPF or DKIM must be enabled and passed (SPF Result: None or Neutral), message rejected. Please contact your mail server administrator.");
+								return;
+
+							case ValidationResult.Temperror when processor.Server.Options.MailAuthenticationOptions.RejectUnauthenticatedEmails:
+								await processor.WriteCode(554, "5.7.23", "Delivery not authorized - SPF or DKIM must be enabled and passed (SPF Result: Temperror), message rejected. Please contact your mail server administrator.");
+								return;
+
+							case ValidationResult.Permerror when processor.Server.Options.MailAuthenticationOptions.RejectUnauthenticatedEmails:
+								await processor.WriteCode(554, "5.7.23", "Delivery not authorized - SPF or DKIM must be enabled and passed (SPF Result: Permerror), message rejected. Please contact your mail server administrator.");
+								return;
 						}
 					}
 
@@ -258,7 +314,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									return;
 							}
 
-							ProcessAddress(processor.Transaction.GetFrom, out var fromDomain);
+							ProcessAddress(processor.Server.Options, processor.Transaction.GetFrom, out var fromDomain);
 							processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dmarc={dmarcValidation.ToString().ToLowerInvariant()} header.from={fromDomain ?? "(none)"}");
 						}
 					}
@@ -298,7 +354,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			}
 		}
 
-		internal static string? ProcessAddress(string? data, out string? domain)
+		internal static string? ProcessAddress(ServerOptions options, string? data, out string? domain)
 		{
 			domain = null;
 			if (data == null)
@@ -321,7 +377,16 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			if (address.Count(x => x == '@') != 1)
 				return null;
 
+			if (address.Length > options.EmailAddressMaximumLength)
+				return null;
+
 			domain = address[(atIndex + 1)..];
+
+			if (domain.Length > options.InternetDomainNameMaximumLength)
+			{
+				domain = null;
+				return null;
+			}
 
 			if (domain.Contains('.'))
 				return address;

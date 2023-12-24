@@ -121,7 +121,7 @@ public class DmarcValidator
 		if (from == null)
 			return ValidationResult.None;
 
-		TransactionCommands.ProcessAddress(from, out var fromDomain);
+		TransactionCommands.ProcessAddress(_server.Options, from, out var fromDomain);
 
 		if (fromDomain == null)
 			return ValidationResult.None;
