@@ -212,15 +212,24 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					if (processor.Transaction.SPFValidationResult != ValidationResult.UserAuthenticated && processor.Transaction.SPFValidationResult != ValidationResult.CheckDisabled)
 						processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={processor.Transaction.SPFValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={processor.Transaction.FromDomain}");
 
-					if (processor.Server.Options.MailAuthenticationOptions.ValidateDkim)
+					if (processor.Server.Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
 					{
-						var dkimValidation = await processor.Server.DkimValidator!.ValidateTransaction(processor.Transaction);
-						processor.Transaction.DKIMValidationResult = dkimValidation;
-						processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dkim={dkimValidation.ToString().ToLowerInvariant()}");
+						if (processor.Username != null)
+							processor.Transaction.DMARCValidationResult = ValidationResult.UserAuthenticated;
+						else
+						{
+							var dkimValidation = await processor.Server.DkimValidator!.ValidateTransaction(processor.Transaction);
+							processor.Transaction.DKIMValidationResult = dkimValidation;
 
-						//TODO Provide more information
-						//TODO Add DMARC validation of DKIM domain
-						//TODO Use the SPF-related configs
+							string sigStatus = string.Empty;
+
+							if (dkimValidation is {ValidationResult: ValidationResult.Pass or ValidationResult.Fail, RsaKeySize: > 0})
+								sigStatus = $" ({dkimValidation.RsaKeySize}-bit key)";
+
+							processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dkim={dkimValidation.ToString().ToLowerInvariant()}{sigStatus} header.d={dkimValidation.Domain} header.s={dkimValidation.Selector}{dkimValidation.SignatureAlgorithmHeader}");
+
+							//TODO Use the SPF-related configs
+						}
 					}
 
 					if (processor.Server.Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)

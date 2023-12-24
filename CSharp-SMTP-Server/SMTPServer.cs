@@ -86,8 +86,8 @@ namespace CSharp_SMTP_Server
 			{
 				DnsClient = new DnsClient.DnsClient(Options.DnsServerEndpoint, new DnsClientOptions {ErrorLogging = new DnsLogger(this)});
 
-				if (Options.MailAuthenticationOptions.ValidateDkim)
-					DkimValidator = new DkimValidator(DnsClient);
+				if (Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
+					DkimValidator = new DkimValidator(this);
 			}
 
 			if (Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)

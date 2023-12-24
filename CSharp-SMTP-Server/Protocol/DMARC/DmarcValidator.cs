@@ -11,7 +11,7 @@ namespace CSharp_SMTP_Server.Protocol.DMARC;
 /// <summary>
 /// DMARC validator
 /// </summary>
-public class DmarcValidator : IMailValidator
+public class DmarcValidator
 {
 	private readonly SMTPServer _server;
 
@@ -162,7 +162,6 @@ public class DmarcValidator : IMailValidator
 	{
 		record = record[8..].Trim().Replace("; ", ";", StringComparison.Ordinal);
 
-		var aspf = record.Contains("aspf=s", StringComparison.OrdinalIgnoreCase) ? AlignmentMode.Strict : AlignmentMode.Relaxed;
 		var action = DmarcResult.None;
 
 		if (isSubdomain && record.Contains(";sp=", StringComparison.OrdinalIgnoreCase))
@@ -176,16 +175,36 @@ public class DmarcValidator : IMailValidator
 			else if (record.Contains(";p=quarantine", StringComparison.OrdinalIgnoreCase)) action = DmarcResult.Quarantine;
 		}
 
-		bool isAligned = fromDomain.Equals(transaction.FromDomain, StringComparison.OrdinalIgnoreCase);
-
-		if (!isAligned && aspf == AlignmentMode.Relaxed)
+		if (transaction.SPFValidationResult != ValidationResult.None && transaction.SPFValidationResult != ValidationResult.Neutral)
 		{
-			var envelopeFromOrgDomain = GetOrganizationalDomain(transaction.FromDomain);
-			isAligned = fromOrgDomain.Equals(envelopeFromOrgDomain, StringComparison.OrdinalIgnoreCase);
+			if (fromDomain.Equals(transaction.FromDomain, StringComparison.OrdinalIgnoreCase))
+				return ValidationResult.Pass; //SPF Aligned (strict)
+
+			var aspf = record.Contains("aspf=s", StringComparison.OrdinalIgnoreCase) ? AlignmentMode.Strict : AlignmentMode.Relaxed;
+
+			if (aspf == AlignmentMode.Relaxed)
+			{
+				var envelopeFromOrgDomain = GetOrganizationalDomain(transaction.FromDomain);
+				if (fromOrgDomain.Equals(envelopeFromOrgDomain, StringComparison.OrdinalIgnoreCase))
+					return ValidationResult.Pass; //SPF Aligned (relaxed)
+			}
 		}
 
-		if (isAligned)
-			return ValidationResult.Pass;
+		if (transaction.DKIMValidationResult.ValidationResult == ValidationResult.Pass)
+		{
+			if (transaction.DKIMValidationResult.Domain!.Equals(fromDomain, StringComparison.OrdinalIgnoreCase))
+				return ValidationResult.Pass; //DKIM Aligned (strict)
+
+			var adkim = record.Contains("adkim=s", StringComparison.OrdinalIgnoreCase) ? AlignmentMode.Strict : AlignmentMode.Relaxed;
+
+			if (adkim == AlignmentMode.Relaxed)
+			{
+				var dkimOrgDomain = GetOrganizationalDomain(transaction.DKIMValidationResult.Domain);
+
+				if (fromOrgDomain.Equals(dkimOrgDomain, StringComparison.OrdinalIgnoreCase))
+					return ValidationResult.Pass; //DKIM Aligned (relaxed)
+			}
+		}
 
 		return action switch
 		{

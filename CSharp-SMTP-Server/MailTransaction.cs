@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol;
+using CSharp_SMTP_Server.Protocol.DKIM;
 using MimeKit;
 
 namespace CSharp_SMTP_Server
@@ -122,7 +123,7 @@ namespace CSharp_SMTP_Server
 		// ReSharper disable once MemberCanBePrivate.Global
 		// ReSharper disable once InconsistentNaming
 		// ReSharper disable once UnusedAutoPropertyAccessor.Global
-		public ValidationResult DKIMValidationResult { get; internal set; }
+		public DkimValidator.DkimValidationResult DKIMValidationResult { get; internal set; }
 
 		/// <summary>
 		/// DMARC validation result
