@@ -15,9 +15,11 @@ This server is only returning all received emails to interface provided by the s
 * RFC 4616 (The PLAIN Simple Authentication and Security Layer (SASL) Mechanism)
 * RFC 4954 (SMTP Service Extension for Authentication)
 * RFC 5321 (SMTP Protocol)
+* RFC 6376 (DomainKeys Identified Mail (DKIM) Signatures)
 * RFC 7208 (Sender Policy Framework)
 * RFC 7372 (Email Authentication Status Codes)
-* RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC)) [Partially Supported]
+* RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC))
+* RFC 8463 (A New Cryptographic Signature Method for DomainKeys Identified Mail (DKIM))
 
 # 3rd party services and libraries usage
 * This library by default uses Cloudflare Public DNS Servers (1.1.1.1) to perform SPF and DMARC validation. IP address of the DNS server can be changed or both validations can be disabled using ServerOptions class.
