@@ -107,7 +107,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									await processor.WriteCode(554,
 										result.Type == SmtpResultType.PermanentFail ? "5.7.1" : "4.7.1",
 										string.IsNullOrWhiteSpace(result.FailMessage)
-											? "Delivery not authorized (mail sender not allowed), message rejected"
+											? "Delivery not authorized (MAIL FROM address not allowed), message rejected"
 											: result.FailMessage);
 									return;
 								}
