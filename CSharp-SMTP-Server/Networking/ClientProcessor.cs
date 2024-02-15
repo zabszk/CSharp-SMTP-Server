@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -121,6 +121,9 @@ namespace CSharp_SMTP_Server.Networking
 				try
 				{
 					var read = await _reader.ReadLineAsync();
+#if DEBUG
+					Server.LoggerInterface?.LogDebug("Received: " + read);
+#endif
 
 					if (read == null)
 						continue;
@@ -152,6 +155,9 @@ namespace CSharp_SMTP_Server.Networking
 			{
 				if (!_stream.CanWrite) return;
 				var encoded = Encoding.UTF8.GetBytes(text + "\r\n");
+#if DEBUG
+				Server.LoggerInterface?.LogDebug("Sent: " + text);
+#endif
 				await _stream.WriteAsync(encoded);
 			}
 			catch (Exception e)

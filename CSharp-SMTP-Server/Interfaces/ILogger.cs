@@ -1,4 +1,4 @@
-﻿namespace CSharp_SMTP_Server.Interfaces
+namespace CSharp_SMTP_Server.Interfaces
 {
 	/// <summary>
 	/// Interface for handling server errors.
@@ -10,5 +10,11 @@
 		/// </summary>
 		/// <param name="text">Error content</param>
 		void LogError(string text);
+
+		/// <summary>
+		/// Called when debug mode.
+		/// </summary>
+		/// <param name="text">Error content</param>
+		void LogDebug(string text);
 	}
 }
