@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Networking;
 
@@ -25,8 +25,17 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			switch (args[0].ToUpper())
 			{
 				case "LOGIN":
-					processor.CaptureData = 2;
-					await processor.WriteText("334 VXNlcm5hbWU6");
+					if (args.Length == 1)
+					{
+						processor.CaptureData = 2;
+						await processor.WriteText("334 VXNlcm5hbWU6");
+					}
+					else
+					{
+						processor.TempUsername = Misc.Base64.Base64Decode(args[1]);
+						processor.CaptureData = 3;
+						await processor.WriteText("334 UGFzc3dvcmQ6");
+					}
 					break;
 
 				case "PLAIN":
