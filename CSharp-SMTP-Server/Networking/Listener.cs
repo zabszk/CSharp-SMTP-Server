@@ -54,15 +54,20 @@ namespace CSharp_SMTP_Server.Networking
 							Server.LoggerInterface?.LogError("[Listening inner loop] Exception: " + e.Message);
 					}
 				}
+
+				Server.LoggerInterface?.LogError($"[Listening inner loop] Loop exited. _dispose={_dispose}. Stack trace: {new System.Diagnostics.StackTrace()}");
 			}
 			catch (Exception e)
 			{
 				Server.LoggerInterface?.LogError("[Listening] Exception: " + e.Message);
 			}
+
+			Server.LoggerInterface?.LogError($"[Listening] Loop exited. _dispose={_dispose}. Stack trace: {new System.Diagnostics.StackTrace()}");
 		}
 
 		public void Dispose()
 		{
+			Server.LoggerInterface?.LogError($"Listener.Dispose() called. _dispose={_dispose}. Stack trace: {new System.Diagnostics.StackTrace()}");
 			_dispose = true;
 
 			_listener.Stop();

@@ -112,6 +112,7 @@ namespace CSharp_SMTP_Server
 		/// </summary>
 		public void Dispose()
 		{
+			LoggerInterface?.LogError($"SMTP Server Dispose() called. Stack trace: {new System.Diagnostics.StackTrace()}");
 			GC.SuppressFinalize(this);
 
 			foreach (var listener in _listeners)
