@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Networking;
 
@@ -8,6 +8,9 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 	{
 		internal static async Task ProcessCommand(ClientProcessor processor, string data)
 		{
+
+			processor.Server.LoggerInterface?.LogVerbose($"AuthenticationCommands.ProcessCommand Capture Data: {processor.CaptureData}  Data: {data}");
+
 			if (processor.Server.AuthLogin == null)
 			{
 				await processor.WriteCode(502, "5.5.1");
@@ -20,12 +23,13 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 				return;
 			}
 
-			var args = data.Contains(' ', StringComparison.Ordinal) ? data.Split(' ') : new[] {data};
+			var args = data.Contains(' ', StringComparison.Ordinal) ? data.Split(' ') : new[] { data };
 
 			switch (args[0].ToUpper())
 			{
 				case "LOGIN":
 					processor.CaptureData = 2;
+					processor.TempUsername = await AuthUser(processor, args[1]);
 					await processor.WriteText("334 VXNlcm5hbWU6");
 					break;
 
@@ -52,11 +56,19 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 		internal static async Task ProcessData(ClientProcessor processor, string data)
 		{
+			processor.Server.LoggerInterface?.LogVerbose($"AuthenticationCommands.ProcessData Capture Data: {processor.CaptureData}  Data: {data}");
+			var decode = "";
 			switch (processor.CaptureData)
 			{
 				case 2:
-					processor.TempUsername = Misc.Base64.Base64Decode(data);
-					processor.CaptureData = 3;
+					decode = Misc.Base64.Base64Decode(data);
+					processor.CaptureData = 0;
+					if (processor.TempUsername != null && decode != null && await processor.Server.AuthLogin.CheckAuthCredentials(processor.TempUsername, processor.TempUsername, decode, processor.RemoteEndPoint, processor.Secure))
+					{
+						await processor.WriteCode(235, "2.7.0", "Authentication Succeeded");
+						processor.Username = processor.TempUsername;
+						break;
+					}
 					await processor.WriteText("334 UGFzc3dvcmQ6");
 					break;
 
@@ -69,7 +81,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 						return;
 					}
 
-					var decode = Misc.Base64.Base64Decode(data);
+					decode = Misc.Base64.Base64Decode(data);
 					if (processor.TempUsername != null && decode != null && await processor.Server.AuthLogin.CheckAuthCredentials(processor.TempUsername, processor.TempUsername, decode, processor.RemoteEndPoint, processor.Secure))
 					{
 						await processor.WriteCode(235, "2.7.0", "Authentication Succeeded");
@@ -102,6 +114,15 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 				processor.Secure)
 				? split[1]
 				: null;
+		}
+
+		private static async Task<string?> AuthUser(ClientProcessor processor, string input)
+		{
+			var auth = Misc.Base64.Base64Decode(input);
+			if (auth == null)
+				return null;
+
+			return auth;
 		}
 	}
 }

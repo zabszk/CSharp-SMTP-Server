@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server;
@@ -13,7 +13,13 @@ internal class DeliveryInterface : IMailDelivery
 	public Task EmailReceived(MailTransaction transaction)
 	{
 		Console.WriteLine(
-			$"\n\n--- EMAIL TRANSACTION ---\nSource IP: {transaction.RemoteEndPoint}\nAuthenticated: {transaction.AuthenticatedUser ?? "(not authenticated)"}\nFrom: {transaction.From}\nTo: {transaction.DeliverTo.Aggregate((current, item) => current + ", " + item)}\n\nBody:\n{transaction.GetMessageBody()}\n\nRaw Body:\n{transaction.RawBody}\n--- END OF TRANSACTION ---\n\n");
+			$"\n\n--- EMAIL TRANSACTION ---\n" +
+			$"Source IP: {transaction.RemoteEndPoint}\n" +
+			$"Authenticated: {transaction.AuthenticatedUser ?? "(not authenticated)"}\n" +
+			$"From: {transaction.From}\n" +
+			$"To: {transaction.DeliverTo.Aggregate((current, item) => current + ", " + item)}\n\n" +
+			$"Body:\n{transaction.GetMessageBody()}\n\nRaw Body:\n{transaction.RawBody}\n" +
+			$"--- END OF TRANSACTION ---\n\n");
 		return Task.CompletedTask;
 	}
 
