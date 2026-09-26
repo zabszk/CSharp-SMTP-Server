@@ -54,14 +54,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							{
 								ValidationResult spfRes;
 
-								if (processor.Server.Options.MailAuthenticationOptions.SpfOptions.AuthenticateEhloAddress && ehloSpfValidation == ValidationResult.CheckDisabled && processor.Transaction!.EhloDomain != null)
+								if (processor.Server.Options.MailAuthenticationOptions.SpfOptions.AuthenticateEhloAddress && ehloSpfValidation == ValidationResult.CheckDisabled && processor.EhloDomain != null)
 								{
-									if (processor.SpfResultsCache!.TryGetValue(processor.Transaction!.EhloDomain, out spfRes))
+									if (processor.SpfResultsCache!.TryGetValue(processor.EhloDomain, out spfRes))
 										ehloSpfValidation = spfRes;
 									else
 									{
-										ehloSpfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint!.Address, processor.Transaction!.EhloDomain);
-										processor.SpfResultsCache.Add(processor.Transaction!.EhloDomain, ehloSpfValidation);
+										ehloSpfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint!.Address, processor.EhloDomain);
+										processor.SpfResultsCache.Add(processor.EhloDomain, ehloSpfValidation);
 									}
 
 									processor.SpfValidationResult = ehloSpfValidation;
