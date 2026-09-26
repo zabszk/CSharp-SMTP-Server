@@ -70,7 +70,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					}
 
 					var decode = Misc.Base64.Base64Decode(data);
-					if (processor.TempUsername != null && decode != null && await processor.Server.AuthLogin.AuthLogin(processor.TempUsername, decode, processor.RemoteEndPoint, processor.Secure))
+					if (processor.TempUsername != null && decode != null && await processor.Server.AuthLogin.CheckAuthCredentials(processor.TempUsername, processor.TempUsername, decode, processor.RemoteEndPoint, processor.Secure))
 					{
 						await processor.WriteCode(235, "2.7.0", "Authentication Succeeded");
 						processor.Username = processor.TempUsername;
@@ -98,7 +98,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			if (auth == null || !auth.Contains('\0', StringComparison.Ordinal)) return null;
 			var split = auth.Split('\0');
 			if (split.Length != 3) return null;
-			return await processor.Server.AuthLogin!.AuthPlain(split[0], split[1], split[2], processor.RemoteEndPoint,
+			return await processor.Server.AuthLogin!.CheckAuthCredentials(split[0], split[1], split[2], processor.RemoteEndPoint,
 				processor.Secure)
 				? split[1]
 				: null;

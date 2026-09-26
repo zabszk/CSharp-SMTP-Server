@@ -132,12 +132,15 @@ namespace CSharp_SMTP_Server.Networking
 				{
 					break;
 				}
+				catch (IOException)
+				{
+					break;
+				}
 				catch (Exception e)
 				{
 					Server.LoggerInterface?.LogError("[Client receive loop] Exception: " + e.GetType().FullName + ", " + e.StackTrace + ", " + e.Message);
 
 					_fails++;
-
 					if (_fails <= 3) continue;
 					break;
 				}
@@ -153,11 +156,15 @@ namespace CSharp_SMTP_Server.Networking
 			{
 				if (!_stream.CanWrite) return;
 				var encoded = Encoding.UTF8.GetBytes(text + "\r\n");
-				await _stream.WriteAsync(encoded);
+				await _stream.WriteAsync(encoded, _t);
+			}
+			catch (IOException)
+			{
+				Dispose(false, true);
 			}
 			catch (Exception e)
 			{
-				Server.LoggerInterface?.LogError("[Client write] Exception: " + e.Message);
+				Server.LoggerInterface?.LogError("[Client write] Exception: " + e.GetType().FullName + ", " + e.StackTrace + ", " + e.Message);
 
 				_fails++;
 				if (_fails > 3) Dispose(false, true);
