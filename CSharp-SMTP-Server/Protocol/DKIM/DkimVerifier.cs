@@ -70,7 +70,7 @@ public class DkimVerifier : DkimVerifierBase
 			keyLength = rsa.Modulus.BitLength;
 		}
 
-		return new DkimValidator.DkimValidationResult(VerifySignature(options, message, dkimSignature, signatureAlgorithm, key, headers, headerAlgorithm, b) ? ValidationResult.Pass : ValidationResult.Fail, s, d, keyLength);
+		return new DkimValidator.DkimValidationResult(VerifySignature(options, message, dkimSignature, signatureAlgorithm, key, headers, headerAlgorithm, b) ? ValidationResult.Pass : ValidationResult.Fail, s, d, keyLength, signatureAlgorithm);
 	}
 
 	private static bool ValidateDkimSignatureParameters(IDictionary<string, string> parameters, out DkimSignatureAlgorithm algorithm, out DkimCanonicalizationAlgorithm headerAlgorithm,

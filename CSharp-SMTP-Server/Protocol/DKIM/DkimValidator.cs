@@ -141,5 +141,23 @@ public class DkimValidator
 				};
 			}
 		}
+
+		/// <inheritdoc />
+		public override string ToString()
+		{
+			return ValidationResult switch
+			{
+				ValidationResult.None => "none",
+				ValidationResult.Neutral => "neutral",
+				ValidationResult.Pass => "pass",
+				ValidationResult.Fail => "fail",
+				ValidationResult.Softfail => "softfail",
+				ValidationResult.Temperror => "temperror",
+				ValidationResult.Permerror => "permerror",
+				ValidationResult.CheckDisabled => "n-a-check-disabled",
+				ValidationResult.UserAuthenticated => "n-a-user-authenticated",
+				_ => "unknown"
+			};
+		}
 	}
 }

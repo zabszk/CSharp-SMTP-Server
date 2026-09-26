@@ -257,7 +257,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							if (dkimValidation is {ValidationResult: ValidationResult.Pass or ValidationResult.Fail, RsaKeySize: > 0})
 								sigStatus = $" ({dkimValidation.RsaKeySize}-bit key)";
 
-							processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dkim={dkimValidation.ToString().ToLowerInvariant()}{sigStatus} header.d={dkimValidation.Domain} header.s={dkimValidation.Selector}{dkimValidation.SignatureAlgorithmHeader}");
+							processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dkim={dkimValidation.ValidationResult.ToString().ToLowerInvariant()}{sigStatus}{(string.IsNullOrEmpty(dkimValidation.Domain) ? string.Empty : $" header.d={dkimValidation.Domain}")}{(string.IsNullOrEmpty(dkimValidation.Selector) ? string.Empty : $" header.s={dkimValidation.Selector}")}{dkimValidation.SignatureAlgorithmHeader}");
 						}
 					}
 
