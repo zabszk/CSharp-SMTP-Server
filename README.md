@@ -109,3 +109,122 @@ You can generate PFX from PEM certificate and PEM private key using openssl:
 ```
 openssl pkcs12 -export -in public.pem -inkey private.pem -out CertWithKey.pfx
 ```
+
+
+# Tested Sample Mail Clients
+
+C# Net System.Net.Mail.SmtpClient Client for Default .Net Client
+It's also same as IIS Relay SMTP Client, only differences that IIS sends AUTH LOGIN as double 
+
+```cs
+public static void SendMailMessage()
+{
+	MailMessage mail = new MailMessage();
+	mail.From = new System.Net.Mail.MailAddress("sender@smtp.demo");
+
+	SmtpClient smtp = new System.Net.Mail.SmtpClient();
+
+	smtp.Port = 587;
+	smtp.EnableSsl = false;
+
+	smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+	
+	smtp.UseDefaultCredentials = false;
+	smtp.Credentials = new NetworkCredential("user", "password");
+	smtp.Host = "localhost";
+
+	mail.To.Add(new MailAddress("receiver@smtp.demo"));
+
+	mail.IsBodyHtml = true;
+	string st = @"Hey Test Mail,
+
+				What are you up to this weekend? Monica is throwing one of her parties on
+				Saturday. I was hoping you could make it.";
+
+	mail.Body = st;
+	smtp.Send(mail);
+}
+```
+
+C# Net MailKit.Net.Smtp.SmtpClient Client 
+
+```cs
+private static void SendMailMessage()
+{
+	var message = new MimeMessage();
+
+	message.From.Add(MailboxAddress.Parse("sender@smtp.demo"));
+
+	message.To.Add(MailboxAddress.Parse("receiver@smtp.demo"));
+	message.Subject = "Test";
+
+	var attachment = new MimePart("application/json", "json")
+	{
+		Content = new MimeContent(new MemoryStream(Encoding.UTF8.GetBytes("Test Attachment File")), ContentEncoding.Base64),
+		ContentDisposition = new ContentDisposition(ContentDisposition.Attachment),
+		ContentTransferEncoding = ContentEncoding.Base64,
+		FileName = "test.json"
+	};
+
+	BodyBuilder builder = new BodyBuilder();
+	builder.HtmlBody = @"Hey Test Mail,
+
+				What are you up to this weekend? Monica is throwing one of her parties on
+				Saturday. I was hoping you could make it.";
+
+	builder.Attachments.Add(attachment);
+
+	message.Body = builder.ToMessageBody();
+
+	var client = new MailKit.Net.Smtp.SmtpClient();
+
+	client.Connect("localhost", 587, false);
+
+	client.Authenticate("user", "password");
+
+	client.Send(message);
+
+
+	client.Disconnect(true);
+
+	Console.WriteLine("Gonderildi {0}", message.To);
+}
+```
+
+
+Python SMTP Client from smtplib that sends MimeKit also same as .Net MimeKit SMTP Client
+
+
+```python
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+sender = "test@smtp.demo"
+receiver = "test@smtp.demo"
+subject = "test"
+content = "test content"
+
+smtp_server = "localhost"
+smtp_port = 587
+smtp_kullanici = "user"
+smtp_sifre = "password"
+
+mime_message = MIMEMultipart()
+mime_message["From"] = sender
+mime_message["To"] = receiver
+mime_message["Subject"] = subject
+
+mime_message.attach(MIMEText(content, "plain"))
+
+try:
+    server = smtplib.SMTP(smtp_server, smtp_port)
+
+    server.login(smtp_kullanici, smtp_sifre)
+    server.sendmail(sender, receiver, mime_message.as_string())
+    print("E-mail Sent")
+except Exception as e:
+    print(f"Failed: {e}")
+finally:
+    server.quit()
+```

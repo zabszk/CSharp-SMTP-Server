@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net;
 using CSharp_SMTP_Server;
 using CSharp_SMTP_Server.Networking;
@@ -10,7 +10,8 @@ internal static class Program
 	private static void Main()
 	{
 		Console.WriteLine("Starting SMTP server on all IP addresses (both IPv4 and IPv6) on ports:\n- plain: 25, 587\n- TLS: 465");
-		Console.WriteLine("Password for all accounts is \"123\".");
+		Console.WriteLine("All Authentication Set as UserName:user Password:password ");
+		Console.WriteLine("You can implement your authentication filter with AuthtenticationInterface with IAuthLogin ");
 
 		var server = new SMTPServer(new[]
 		{
