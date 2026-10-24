@@ -200,7 +200,9 @@ namespace CSharp_SMTP_Server.Networking
 			string command;
 			var data = string.Empty;
 
-			if (response.Contains(':', StringComparison.Ordinal)) command = response[..response.IndexOf(":", StringComparison.Ordinal)].ToUpperInvariant().TrimEnd();
+			if (response.StartsWith("EHLO ", StringComparison.OrdinalIgnoreCase) || response.StartsWith("HELO ", StringComparison.OrdinalIgnoreCase))
+				command = response[..response.IndexOf(" ", StringComparison.Ordinal)].ToUpperInvariant();
+			else if (response.Contains(':', StringComparison.Ordinal)) command = response[..response.IndexOf(":", StringComparison.Ordinal)].ToUpperInvariant().TrimEnd();
 			else if (response.Contains(' ', StringComparison.Ordinal))
 				command = response[..response.IndexOf(" ", StringComparison.Ordinal)].ToUpper(CultureInfo.InvariantCulture).TrimEnd();
 			else command = response.ToUpperInvariant();
