@@ -30,7 +30,7 @@ namespace CSharp_SMTP_Server.Networking
 			Encryption = ConnectionEncryption.Plaintext;
 			Secure = secure && Server.Certificate != null;
 
-			if (Server.SpfValidator != null)
+			if (Server.Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
 				SpfResultsCache = new();
 
 			Init();

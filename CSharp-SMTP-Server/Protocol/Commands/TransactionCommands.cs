@@ -6,6 +6,7 @@ using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol.DKIM;
 using CSharp_SMTP_Server.Protocol.Responses;
+using CSharp_SMTP_Server.Protocol.SPF;
 using static System.FormattableString;
 
 namespace CSharp_SMTP_Server.Protocol.Commands
@@ -60,7 +61,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 										ehloSpfValidation = spfRes;
 									else
 									{
-										ehloSpfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint!.Address, processor.EhloDomain);
+										ehloSpfValidation = await SpfValidator.CheckHost(processor.RemoteEndPoint!.Address, processor.EhloDomain);
 										processor.SpfResultsCache.Add(processor.EhloDomain, ehloSpfValidation);
 									}
 
@@ -82,7 +83,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									spfValidation = spfRes;
 								else
 								{
-									spfValidation = await processor.Server.SpfValidator!.CheckHost(processor.RemoteEndPoint!.Address, domain!);
+									spfValidation = await SpfValidator.CheckHost(processor.RemoteEndPoint!.Address, domain!);
 									processor.SpfResultsCache.Add(domain!, spfValidation);
 								}
 

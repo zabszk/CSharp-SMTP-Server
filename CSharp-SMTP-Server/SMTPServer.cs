@@ -32,11 +32,6 @@ namespace CSharp_SMTP_Server
 		public readonly ServerOptions Options;
 
 		/// <summary>
-		/// SPF validator
-		/// </summary>
-		public readonly SpfValidator? SpfValidator;
-
-		/// <summary>
 		/// DKIM validator
 		/// </summary>
 		public readonly DkimValidator? DkimValidator;
@@ -79,9 +74,6 @@ namespace CSharp_SMTP_Server
 
 			if (Options.DnsServerEndpoint != null && Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
 				DkimValidator = new DkimValidator(this);
-
-			if (Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
-				SpfValidator = new SpfValidator();
 
 			if (Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)
 				DmarcValidator = new DmarcValidator(this);
