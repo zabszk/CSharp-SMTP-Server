@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using CSharp_SMTP_Server.Misc;
 using CSharp_SMTP_Server.Protocol.Commands;
-using DnsClient.Data.Records;
-using DnsClient.Enums;
 
 namespace CSharp_SMTP_Server.Protocol.DMARC;
 
@@ -15,9 +14,11 @@ public class DmarcValidator
 {
 	private readonly SMTPServer _server;
 
-	private static readonly HashSet<string> PublicSuffixes = new();
-	private static bool _publicSuffixesLoaded;
-	private static readonly object PublicSuffixesLock = new();
+	/// <summary>
+	/// Hashset containing Public Suffix List
+	/// </summary>
+	// ReSharper disable once MemberCanBePrivate.Global
+	public HashSet<string>? PublicSuffixes;
 
 	#region Constructors
 	/// <summary>
@@ -27,56 +28,50 @@ public class DmarcValidator
 	public DmarcValidator(SMTPServer server)
 	{
 		_server = server;
-
-		if (!_publicSuffixesLoaded)
-			DownloadList(_server.Options.PublicSuffixList).Wait();
 	}
 	#endregion
 
-	/// <summary>
-	/// Forces PublicSuffixes reload
-	/// </summary>
-	/// <param name="url">URL of the list</param>
-	public async Task ForceRefreshList(string? url = null) => await DownloadList(url ?? _server.Options.PublicSuffixList, true);
-
-	private static async Task DownloadList(string url, bool force = false)
+	internal void Start()
 	{
-		if (!force)
+		if (PublicSuffixes != null)
+			return;
+
+		if (!_server.Options.MailAuthenticationOptions.AutomaticallyDownloadPublicSuffixList)
+			throw new Exception("Public suffix list is not loaded, but DMARC validation is enabled! Please enable automatic download of the list in the server options or manually load it before starting the server.");
+
+		DownloadList(_server.Options.MailAuthenticationOptions.PublicSuffixListUrl).Wait();
+	}
+
+	/// <summary>
+	/// Downloads the Public Suffix List from the URL specified in server options.
+	/// </summary>
+	public async Task DownloadList() => await DownloadList(_server.Options.MailAuthenticationOptions.PublicSuffixListUrl);
+
+	/// <summary>
+	/// Downloads the Public Suffix List from the specified URL.
+	/// </summary>
+	/// <param name="url">Public Suffix List Download URL</param>
+	// ReSharper disable once MemberCanBePrivate.Global
+	public async Task DownloadList(string url)
+	{
+		PublicSuffixes ??= new();
+
+		using var httpClient = new HttpClient();
+		using var response = await httpClient.GetAsync(url);
+
+		if (!response.IsSuccessStatusCode)
+			throw new Exception("Failed to download list of domains!");
+
+		var data = (await response.Content.ReadAsStringAsync()).Split(new [] {'\r', '\n'}, StringSplitOptions.RemoveEmptyEntries);
+
+		PublicSuffixes.Clear();
+
+		foreach (var line in data)
 		{
-			lock (PublicSuffixesLock)
-			{
-				if (_publicSuffixesLoaded)
-					return;
+			if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//", StringComparison.Ordinal))
+				continue;
 
-				_publicSuffixesLoaded = true;
-			}
-		}
-		else _publicSuffixesLoaded = true;
-
-		try
-		{
-			using var httpClient = new HttpClient();
-			using var response = await httpClient.GetAsync(url);
-
-			if (!response.IsSuccessStatusCode)
-				throw new Exception("Failed to download list of domains!");
-
-			var data = (await response.Content.ReadAsStringAsync()).Split(new [] {'\r', '\n'}, StringSplitOptions.RemoveEmptyEntries);
-
-			PublicSuffixes.Clear();
-
-			foreach (var line in data)
-			{
-				if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//", StringComparison.Ordinal))
-					continue;
-
-				PublicSuffixes.Add(line);
-			}
-		}
-		catch (Exception)
-		{
-			_publicSuffixesLoaded = false;
-			throw;
+			PublicSuffixes.Add(line);
 		}
 	}
 
@@ -87,10 +82,10 @@ public class DmarcValidator
 	/// <returns>Organizational Domain</returns>
 	/// <exception cref="Exception">Returned if DMARC Validator was never initialized.</exception>
 	// ReSharper disable once MemberCanBePrivate.Global
-	public static string GetOrganizationalDomain(string domain)
+	public string GetOrganizationalDomain(string domain)
 	{
-		if (!_publicSuffixesLoaded)
-			throw new Exception("Suffix list is not loaded, because DMARC Validator was never initialized.");
+		if (PublicSuffixes == null)
+			throw new Exception("Suffix list is null (not loaded)!");
 
 		var sp = domain.Split('.', StringSplitOptions.RemoveEmptyEntries);
 
@@ -117,15 +112,15 @@ public class DmarcValidator
 	/// <exception cref="Exception">Returned if DMARC Validator was never initialized.</exception>
 	public async Task<ValidationResult> ValidateTransaction(MailTransaction transaction)
 	{
-		if (!_publicSuffixesLoaded)
-			throw new Exception("Suffix list is not loaded, because DMARC Validator was never initialized.");
+		if (PublicSuffixes == null)
+			throw new Exception("Suffix list is not loaded!.");
 
 		var from = transaction.GetFrom;
 
 		if (from == null)
 			return ValidationResult.None;
 
-		TransactionCommands.ProcessAddress(from, out var fromDomain);
+		TransactionCommands.ProcessAddress(_server.Options, from, out var fromDomain);
 
 		if (fromDomain == null)
 			return ValidationResult.None;
@@ -139,34 +134,12 @@ public class DmarcValidator
 		return record != null ? ProcessRecord(transaction, record, fromDomain, fromOrgDomain, isSubdomain) : ValidationResult.None;
 	}
 
-	private async Task<string?> GetDmarcRecord(string domain)
-	{
-		var dmarcQuery = await _server.DnsClient!.Query("_dmarc." + domain, QType.TXT);
+	private static async Task<string?> GetDmarcRecord(string domain) => await DnsLookup.QueryTxtRecordWithPrefixAsync("_dmarc." + domain, "v=DMARC1;");
 
-		if (dmarcQuery.ErrorCode != DnsErrorCode.NoError || dmarcQuery.Records == null)
-			return null;
-
-		string? record = null;
-
-		foreach (var r in dmarcQuery.Records)
-		{
-			if (r is not DnsRecord.TXTRecord t || !t.Text.StartsWith("v=DMARC1;", StringComparison.Ordinal))
-				continue;
-
-			if (record != null)
-				return null;
-
-			record = t.Text;
-		}
-
-		return record;
-	}
-
-	private static ValidationResult ProcessRecord(MailTransaction transaction, string record, string fromDomain, string fromOrgDomain, bool isSubdomain)
+	private ValidationResult ProcessRecord(MailTransaction transaction, string record, string fromDomain, string fromOrgDomain, bool isSubdomain)
 	{
 		record = record[8..].Trim().Replace("; ", ";", StringComparison.Ordinal);
 
-		var aspf = record.Contains("aspf=s", StringComparison.OrdinalIgnoreCase) ? AlignmentMode.Strict : AlignmentMode.Relaxed;
 		var action = DmarcResult.None;
 
 		if (isSubdomain && record.Contains(";sp=", StringComparison.OrdinalIgnoreCase))
@@ -180,16 +153,36 @@ public class DmarcValidator
 			else if (record.Contains(";p=quarantine", StringComparison.OrdinalIgnoreCase)) action = DmarcResult.Quarantine;
 		}
 
-		bool isAligned = fromDomain.Equals(transaction.FromDomain, StringComparison.OrdinalIgnoreCase);
-
-		if (!isAligned && aspf == AlignmentMode.Relaxed)
+		if (transaction.SPFValidationResult != ValidationResult.None && transaction.SPFValidationResult != ValidationResult.Neutral)
 		{
-			var envelopeFromOrgDomain = GetOrganizationalDomain(transaction.FromDomain);
-			isAligned = fromOrgDomain.Equals(envelopeFromOrgDomain, StringComparison.OrdinalIgnoreCase);
+			if (fromDomain.Equals(transaction.FromDomain, StringComparison.OrdinalIgnoreCase))
+				return ValidationResult.Pass; //SPF Aligned (strict)
+
+			var aspf = record.Contains("aspf=s", StringComparison.OrdinalIgnoreCase) ? AlignmentMode.Strict : AlignmentMode.Relaxed;
+
+			if (aspf == AlignmentMode.Relaxed)
+			{
+				var envelopeFromOrgDomain = GetOrganizationalDomain(transaction.FromDomain);
+				if (fromOrgDomain.Equals(envelopeFromOrgDomain, StringComparison.OrdinalIgnoreCase))
+					return ValidationResult.Pass; //SPF Aligned (relaxed)
+			}
 		}
 
-		if (isAligned)
-			return ValidationResult.Pass;
+		if (transaction.DKIMValidationResult.ValidationResult == ValidationResult.Pass)
+		{
+			if (transaction.DKIMValidationResult.Domain!.Equals(fromDomain, StringComparison.OrdinalIgnoreCase))
+				return ValidationResult.Pass; //DKIM Aligned (strict)
+
+			var adkim = record.Contains("adkim=s", StringComparison.OrdinalIgnoreCase) ? AlignmentMode.Strict : AlignmentMode.Relaxed;
+
+			if (adkim == AlignmentMode.Relaxed)
+			{
+				var dkimOrgDomain = GetOrganizationalDomain(transaction.DKIMValidationResult.Domain);
+
+				if (fromOrgDomain.Equals(dkimOrgDomain, StringComparison.OrdinalIgnoreCase))
+					return ValidationResult.Pass; //DKIM Aligned (relaxed)
+			}
+		}
 
 		return action switch
 		{

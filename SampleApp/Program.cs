@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using CSharp_SMTP_Server;
+using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Networking;
 
 namespace SampleApp;
@@ -28,7 +29,7 @@ internal static class Program
 		while (true)
 		{
 			var read = Console.ReadLine();
-			if (read != null && read.ToLower() == "exit") break;
+			if (read != null && read.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
 		}
 
 		Console.WriteLine("Stopping the server...");

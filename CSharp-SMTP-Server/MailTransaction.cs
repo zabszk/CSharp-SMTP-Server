@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol;
+using CSharp_SMTP_Server.Protocol.DKIM;
 using MimeKit;
 
 namespace CSharp_SMTP_Server
@@ -15,15 +16,23 @@ namespace CSharp_SMTP_Server
 	/// </summary>
 	public class MailTransaction : ICloneable
 	{
-		internal MailTransaction(string from, string fromDomain, ValidationResult validationResult)
+		internal MailTransaction(string? ehloDomain, string from, string fromDomain, ValidationResult validationResult, ValidationResult ehloValidationResult)
 		{
+			EhloDomain = ehloDomain;
 			From = from;
 			FromDomain = fromDomain;
 			SPFValidationResult = validationResult;
+			EhloSPFValidationResult = ehloValidationResult;
 			DeliverTo = new List<string>();
 			AuthenticatedUser = null;
 			RawBody = string.Empty;
 		}
+
+		/// <summary>
+		/// Mail sender
+		/// </summary>
+		// ReSharper disable once MemberCanBePrivate.Global
+		public readonly string? EhloDomain;
 
 		/// <summary>
 		/// Mail sender
@@ -117,6 +126,21 @@ namespace CSharp_SMTP_Server
 		public readonly ValidationResult SPFValidationResult;
 
 		/// <summary>
+		/// SPF validation result of EHLO domain
+		/// </summary>
+		// ReSharper disable once MemberCanBePrivate.Global
+		// ReSharper disable once InconsistentNaming
+		public readonly ValidationResult EhloSPFValidationResult;
+
+		/// <summary>
+		/// DKIM validation result
+		/// </summary>
+		// ReSharper disable once MemberCanBePrivate.Global
+		// ReSharper disable once InconsistentNaming
+		// ReSharper disable once UnusedAutoPropertyAccessor.Global
+		public DkimValidator.DkimValidationResult DKIMValidationResult { get; internal set; } = new (ValidationResult.None);
+
+		/// <summary>
 		/// DMARC validation result
 		/// </summary>
 		// ReSharper disable once MemberCanBePrivate.Global
@@ -138,7 +162,7 @@ namespace CSharp_SMTP_Server
 		/// <inheritdoc />
 		public object Clone()
 		{
-			return new MailTransaction(From, FromDomain, SPFValidationResult)
+			return new MailTransaction(EhloDomain, From, FromDomain, SPFValidationResult, EhloSPFValidationResult)
 			{
 				AuthenticatedUser = AuthenticatedUser,
 				RawBody = RawBody,

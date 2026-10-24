@@ -3,10 +3,10 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using CSharp_SMTP_Server.Misc;
 using DnsClient;
-using DnsClient.Data.Records;
-using DnsClient.Enums;
-using DnsClient.Logging;
+using DnsClient.Protocol;
+
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace CSharp_SMTP_Server.Protocol.SPF;
@@ -14,57 +14,8 @@ namespace CSharp_SMTP_Server.Protocol.SPF;
 /// <summary>
 /// SPF validator
 /// </summary>
-public class SpfValidator
+public static class SpfValidator
 {
-	/// <summary>
-	/// DNS Client used to validate SPF records
-	/// </summary>
-	public readonly DnsClient.DnsClient DnsClient;
-
-	#region Constructors
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="server">SMTP server which configuration should be used</param>
-	public SpfValidator(SMTPServer server) => DnsClient = server.DnsClient ?? throw new ArgumentException("Server has a null DnsClient", nameof(server));
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsClient">DNS client used for SPF validation</param>
-	public SpfValidator(DnsClient.DnsClient dnsClient) => DnsClient = dnsClient;
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerEndpoint">DNS server endpoint</param>
-	/// <param name="dnsClientOptions">DNS client options</param>
-	public SpfValidator(EndPoint dnsServerEndpoint, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerEndpoint, dnsClientOptions)) { }
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerEndpoint">DNS server endpoint</param>
-	/// <param name="errorLogging">DNS client error logging interface</param>
-	public SpfValidator(EndPoint dnsServerEndpoint, IErrorLogging? errorLogging) : this(dnsServerEndpoint, new DnsClientOptions {ErrorLogging = errorLogging}) { }
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerAddress">DNS server IP address</param>
-	/// <param name="dnsServerPort">DNS server port</param>
-	/// <param name="dnsClientOptions">DNS client options</param>
-	public SpfValidator(IPAddress dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerAddress">DNS server IP address</param>
-	/// <param name="dnsServerPort">DNS server port</param>
-	/// <param name="dnsClientOptions">DNS client options</param>
-	public SpfValidator(string dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
-	#endregion
-
 	/// <summary>
 	/// RFC 7208 (SPF) check_host() function
 	/// Authenticates remote SMTP server.
@@ -72,30 +23,14 @@ public class SpfValidator
 	/// <param name="ipAddress">IP address of the remote SMTP server</param>
 	/// <param name="domain">Email sender domain</param>
 	/// <returns>SPF validation result</returns>
-	public async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain) => await CheckHost(ipAddress, domain, 0);
+	public static Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain) => CheckHost(ipAddress, domain, 0);
 
-	private async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
+	private static async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
 	{
 		if (ipAddress.IsIPv4MappedToIPv6)
 			ipAddress = ipAddress.MapToIPv4();
 
-		var txtQuery = await DnsClient.Query(domain, QType.TXT);
-
-		if (txtQuery.ErrorCode != DnsErrorCode.NoError || txtQuery.Records == null)
-			return ValidationResult.Temperror;
-
-		string? record = null;
-
-		foreach (var r in txtQuery.Records)
-		{
-			if (r is not DnsRecord.TXTRecord t || !t.Text.StartsWith("v=spf1 ", StringComparison.Ordinal))
-				continue;
-
-			if (record != null)
-				return ValidationResult.Permerror;
-
-			record = t.Text;
-		}
+		var record = await DnsLookup.QueryTxtRecordWithPrefixAsync(domain, "v=spf1 ");
 
 		if (record == null)
 			return ValidationResult.None;
@@ -182,8 +117,7 @@ public class SpfValidator
 
 						requestsMade++;
 
-						var result = await CheckAddressMatch(ipAddress, domain, args, cidr, qualifier);
-						if (result != ValidationResult.None)
+						if (await CheckAddressMatch(ipAddress, domain, args, cidr))
 							return qualifier;
 					}
 					break;
@@ -198,14 +132,11 @@ public class SpfValidator
 
 						requestsMade++;
 
-						var mxQuery = await DnsClient.Query(args ?? domain, QType.MX);
+						var mxQuery = await DnsLookup.LookupClient.QueryAsync(args ?? domain, QueryType.MX);
 
-						if (mxQuery.ErrorCode != DnsErrorCode.NoError || mxQuery.Records == null)
-							return ValidationResult.Temperror;
-
-						foreach (var q in mxQuery.Records)
+						foreach (var q in mxQuery.Answers)
 						{
-							if (q is not DnsRecord.MXRecord ar)
+							if (q is not MxRecord ar)
 								continue;
 
 							if (requestsMade > 10)
@@ -213,8 +144,7 @@ public class SpfValidator
 
 							requestsMade++;
 
-							var result = await CheckAddressMatch(ipAddress, ar.MailExchange, null, cidr, qualifier);
-							if (result != ValidationResult.None)
+							if (await CheckAddressMatch(ipAddress, ar.Exchange, null, cidr))
 								return qualifier;
 						}
 					}
@@ -227,17 +157,14 @@ public class SpfValidator
 
 						requestsMade++;
 
-						var ptrQuery = await DnsClient.QueryReverseDNS(ipAddress);
+						var ptrQuery = await DnsLookup.LookupClient.QueryReverseAsync(ipAddress);
 
-						if (ptrQuery.ErrorCode != DnsErrorCode.NoError || ptrQuery.Records == null)
-							continue;
-
-						foreach (var q in ptrQuery.Records)
+						foreach (var q in ptrQuery.Answers)
 						{
-							if (q is not DnsRecord.PTRRecord ar)
+							if (q is not PtrRecord ar)
 								continue;
 
-							if (!ar.DomainName.Equals(domain, StringComparison.OrdinalIgnoreCase) && !ar.DomainName.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+							if (!ar.PtrDomainName.Value.Equals(domain, StringComparison.OrdinalIgnoreCase) && !ar.PtrDomainName.Value.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
 								continue;
 
 							if (requestsMade > 10)
@@ -246,7 +173,7 @@ public class SpfValidator
 							requestsMade++;
 							ptrWasUsed = true;
 
-							if (await CheckAddressMatch(ipAddress, ar.DomainName, null, null, ValidationResult.Pass) == ValidationResult.Pass)
+							if (await CheckAddressMatch(ipAddress, ar.DomainName, null, null))
 								return qualifier;
 						}
 					}
@@ -313,25 +240,25 @@ public class SpfValidator
 		return ValidationResult.Neutral;
 	}
 
-	private async Task<ValidationResult> CheckAddressMatch(IPAddress ipAddress, string domain, string? args, int? cidr, ValidationResult qualifier)
+	private static async Task<bool> CheckAddressMatch(IPAddress ipAddress, string domain, string? args, int? cidr)
 	{
-		var aQuery = await DnsClient.Query(args ?? domain, ipAddress.AddressFamily == AddressFamily.InterNetwork ? QType.A : QType.AAAA);
+		var aQuery = await DnsLookup.LookupClient.QueryAsync(args ?? domain, ipAddress.AddressFamily == AddressFamily.InterNetwork ? QueryType.A : QueryType.AAAA);
 
-		if (aQuery.ErrorCode != DnsErrorCode.NoError || aQuery.Records == null)
-			return ValidationResult.Temperror;
+		if (aQuery.Answers.Count == 0)
+			return false;
 
 		if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
 		{
 			if (cidr is null or > 32)
 				cidr = 32;
 
-			foreach (var q in aQuery.Records)
+			foreach (var q in aQuery.Answers)
 			{
-				if (q is not DnsRecord.ARecord ar)
+				if (q is not ARecord ar)
 					continue;
 
 				if (CheckCIDR(ar.Address, ipAddress, (byte)cidr))
-					return qualifier;
+					return true;
 			}
 		}
 		else
@@ -339,17 +266,17 @@ public class SpfValidator
 			if (cidr is null or > 128)
 				cidr = 128;
 
-			foreach (var q in aQuery.Records)
+			foreach (var q in aQuery.Answers)
 			{
-				if (q is not DnsRecord.AAAARecord ar)
+				if (q is not AaaaRecord ar)
 					continue;
 
 				if (CheckCIDR(ar.Address, ipAddress, (byte)cidr))
-					return qualifier;
+					return true;
 			}
 		}
 
-		return ValidationResult.None;
+		return false;
 	}
 
 	/// <summary>

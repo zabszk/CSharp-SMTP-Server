@@ -30,7 +30,7 @@ namespace CSharp_SMTP_Server.Networking
 			Encryption = ConnectionEncryption.Plaintext;
 			Secure = secure && Server.Certificate != null;
 
-			if (Server.SpfValidator != null)
+			if (Server.Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
 				SpfResultsCache = new();
 
 			Init();
@@ -58,7 +58,8 @@ namespace CSharp_SMTP_Server.Networking
 		internal bool Secure { get; private set; }
 		internal ConnectionEncryption Encryption { get; private set; }
 		internal ushort CaptureData;
-		internal string? Username, TempUsername;
+		internal string? Username, TempUsername, EhloDomain;
+		internal ValidationResult SpfValidationResult = ValidationResult.CheckDisabled;
 		private ushort _protocolVersion;
 		private bool _dispose;
 
@@ -209,9 +210,17 @@ namespace CSharp_SMTP_Server.Networking
 
 			switch (command.Trim())
 			{
+				case "EHLO" when data.Length > Server.Options.InternetDomainNameMaximumLength:
+				case "HELO" when data.Length > Server.Options.InternetDomainNameMaximumLength:
+					await WriteCode(501, "5.5.4", "EHLO/HELO domain name exceeds the maximum domain name length set by the server administrator.");
+					Dispose();
+					return;
+
 				case "EHLO":
 					Transaction = null;
 					_protocolVersion = 2;
+					EhloDomain = string.IsNullOrWhiteSpace(data) ? null: data;
+					SpfValidationResult = ValidationResult.CheckDisabled;
 					await WriteText($"250-{Server.Options.ServerName} at your service");
 					if (Server.AuthLogin != null) await WriteText("250-AUTH LOGIN PLAIN");
 					if (!Secure && Server.Certificate != null) await WriteText("250-STARTTLS");
@@ -221,6 +230,8 @@ namespace CSharp_SMTP_Server.Networking
 				case "HELO":
 					Transaction = null;
 					_protocolVersion = 1;
+					EhloDomain = string.IsNullOrWhiteSpace(data) ? null: data;
+					SpfValidationResult = ValidationResult.CheckDisabled;
 					await WriteText($"250 {Server.Options.ServerName} at your service");
 					break;
 

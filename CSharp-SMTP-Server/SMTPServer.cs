@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Interfaces;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol;
+using CSharp_SMTP_Server.Protocol.DKIM;
 using CSharp_SMTP_Server.Protocol.SPF;
 using CSharp_SMTP_Server.Protocol.DMARC;
 using DnsClient;
@@ -30,14 +32,9 @@ namespace CSharp_SMTP_Server
 		public readonly ServerOptions Options;
 
 		/// <summary>
-		/// DNS Client used for email messages authentication
+		/// DKIM validator
 		/// </summary>
-		public readonly DnsClient.DnsClient? DnsClient;
-
-		/// <summary>
-		/// SPF validator
-		/// </summary>
-		public readonly SpfValidator? SpfValidator;
+		public readonly DkimValidator? DkimValidator;
 
 		/// <summary>
 		/// DMARC validator
@@ -73,14 +70,13 @@ namespace CSharp_SMTP_Server
 			Options = options ?? new();
 			MailDeliveryInterface = deliveryInterface;
 			LoggerInterface = loggerInterface;
-			Certificate = certificate;
+			this.Certificate = certificate;
 
-			if (Options.DnsServerEndpoint != null)
-			{
-				DnsClient = new DnsClient.DnsClient(Options.DnsServerEndpoint, new DnsClientOptions {ErrorLogging = new DnsLogger(this)});
-				SpfValidator = new SpfValidator(this);
+			if (Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
+				DkimValidator = new DkimValidator(this);
+
+			if (Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)
 				DmarcValidator = new DmarcValidator(this);
-			}
 
 			if (parameters != null)
 				foreach (var parameter in parameters)
@@ -103,6 +99,7 @@ namespace CSharp_SMTP_Server
 		/// </summary>
 		public void Start()
 		{
+			DmarcValidator?.Start();
 			_started = true;
 			_listeners.ForEach(listener => listener.Start());
 		}

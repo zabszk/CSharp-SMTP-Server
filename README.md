@@ -6,6 +6,7 @@ This server is only returning all received emails to interface provided by the s
 # Supported features
 * TLS and STARTTLS
 * AUTH LOGIN and AUTH PLAIN
+* Configurable SPF, DKIM and DMARC
 
 # Compatible with
 * RFC 822 (STANDARD FOR THE FORMAT OF ARPA INTERNET TEXT MESSAGES)
@@ -15,13 +16,14 @@ This server is only returning all received emails to interface provided by the s
 * RFC 4616 (The PLAIN Simple Authentication and Security Layer (SASL) Mechanism)
 * RFC 4954 (SMTP Service Extension for Authentication)
 * RFC 5321 (SMTP Protocol)
+* RFC 6376 (DomainKeys Identified Mail (DKIM) Signatures)
 * RFC 7208 (Sender Policy Framework)
 * RFC 7372 (Email Authentication Status Codes)
-* RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC)) [Partially Supported]
+* RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC))
+* RFC 8463 (A New Cryptographic Signature Method for DomainKeys Identified Mail (DKIM))
 
 # 3rd party services and libraries usage
-* This library by default uses Cloudflare Public DNS Servers (1.1.1.1) to perform SPF and DMARC validation. IP address of the DNS server can be changed or both validations can be disabled using ServerOptions class.
-* This library by default downloads Public Suffix List managed by Mozilla Foundation from GitHub. The list is licensed under Mozilla Public License v. 2.0. The download URL can be changed in ServerOptions class. The list is NOT downloaded if DnsServerEndpoint is set to null in ServerOptions class.
+* This library by default downloads Public Suffix List managed by Mozilla Foundation from publicsuffix.org. The list is licensed under Mozilla Public License v. 2.0. The download URL can be changed in the ServerOptions class. If you wish, you can disable automatic download of the list and load the list manually (eg. from a file distributed with your software). The list is NOT downloaded if DMARC is turned off in the server options.
 * This library uses [MimeKit](https://github.com/jstedfast/MimeKit) library created by .NET Foundation and Contributors and licensed under [The MIT License](https://raw.githubusercontent.com/jstedfast/MimeKit/master/LICENSE).
 
 # Basic usage
@@ -85,11 +87,8 @@ class FilterInterface : IMailFilter
 		? new SmtpResult(SmtpResultType.PermanentFail)
 		: new SmtpResult(SmtpResultType.Success));
 		
-	//Let's reject Softfail as well
-	public Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint? ep, SpfResult spfResult) => Task.FromResult(spfResult == SpfResult.Softfail
-		? new SmtpResult(SmtpResultType.PermanentFail)
-		: new
-			SmtpResult(SmtpResultType.Success));
+	//Let's just always return success
+	public Task<SmtpResult> IsAllowedSenderSpfVerified(string source, EndPoint ep, string username, ValidationResult validationResult) => Task.FromResult(new SmtpResult(SmtpResultType.Success));
 
 	//Let's block all emails to root at any domain
 	public Task<SmtpResult> CanDeliver(string source, string destination, bool authenticated, string username,
