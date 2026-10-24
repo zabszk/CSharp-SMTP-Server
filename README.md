@@ -23,7 +23,7 @@ This server is only returning all received emails to interface provided by the s
 * RFC 8463 (A New Cryptographic Signature Method for DomainKeys Identified Mail (DKIM))
 
 # 3rd party services and libraries usage
-* This library by default downloads Public Suffix List managed by Mozilla Foundation from GitHub. The list is licensed under Mozilla Public License v. 2.0. The download URL can be changed in the ServerOptions class. If you wish, you can disable automatic download of the list and load the list manually (eg. from a file distributed with your software). The list is NOT downloaded if DMARC is turned off in the server options.
+* This library by default downloads Public Suffix List managed by Mozilla Foundation from publicsuffix.org. The list is licensed under Mozilla Public License v. 2.0. The download URL can be changed in the ServerOptions class. If you wish, you can disable automatic download of the list and load the list manually (eg. from a file distributed with your software). The list is NOT downloaded if DMARC is turned off in the server options.
 * This library uses [MimeKit](https://github.com/jstedfast/MimeKit) library created by .NET Foundation and Contributors and licensed under [The MIT License](https://raw.githubusercontent.com/jstedfast/MimeKit/master/LICENSE).
 
 # Basic usage
