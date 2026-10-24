@@ -17,8 +17,11 @@ internal class DeliveryInterface : IMailDelivery
 		return Task.CompletedTask;
 	}
 
+	//We own all domains. A more real scenario is below, but for tests we want to display all emails sent to this server.
+	public Task<UserExistsCodes> DoesUserExist(string emailAddress) => Task.FromResult(UserExistsCodes.DestinationAddressValid);
+
 	//We only own "@smtp.demo" and we don't want any emails to other domains
-	public Task<UserExistsCodes> DoesUserExist(string emailAddress) => Task.FromResult(emailAddress.EndsWith("@smtp.demo", StringComparison.OrdinalIgnoreCase)
+	/*public Task<UserExistsCodes> DoesUserExist(string emailAddress) => Task.FromResult(emailAddress.EndsWith("@smtp.demo", StringComparison.OrdinalIgnoreCase)
 		? UserExistsCodes.DestinationAddressValid
-		: UserExistsCodes.BadDestinationSystemAddress);
+		: UserExistsCodes.BadDestinationSystemAddress);*/
 }

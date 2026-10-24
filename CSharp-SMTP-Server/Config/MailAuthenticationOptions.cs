@@ -56,8 +56,6 @@ public class MailAuthenticationOptions
 	// ReSharper disable once FieldCanBeMadeReadOnly.Global
 	// ReSharper disable once ConvertToConstant.Global
 	public string PublicSuffixListUrl = "https://raw.githubusercontent.com/publicsuffix/list/master/public_suffix_list.dat";
-
-	internal bool AnyMechanismEnabled => SpfOptions.ValidateSpf || DkimOptions.ValidateDkim || DmarcOptions.ValidateDmarc;
 }
 
 /// <summary>

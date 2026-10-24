@@ -72,7 +72,7 @@ namespace CSharp_SMTP_Server
 			LoggerInterface = loggerInterface;
 			this.Certificate = certificate;
 
-			if (Options.DnsServerEndpoint != null && Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
+			if (Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
 				DkimValidator = new DkimValidator(this);
 
 			if (Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)

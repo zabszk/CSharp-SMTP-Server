@@ -59,24 +59,13 @@ namespace CSharp_SMTP_Server.Config
 		public readonly MailAuthenticationOptions MailAuthenticationOptions;
 
 		/// <summary>
-		/// Endpoint to the DNS Server used for SPF validation.
-		/// Default: 1.1.1.1:53 (Cloudflare Public DNS Server)
-		/// </summary>
-		public readonly EndPoint? DnsServerEndpoint;
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="dnsServerEndpoint">Specifies DNS server endpoint</param>
 		/// <param name="mailAuthenticationOptions">Configures the email authentication</param>
 		// ReSharper disable InconsistentNaming
-		public ServerOptions(EndPoint? dnsServerEndpoint = null, MailAuthenticationOptions? mailAuthenticationOptions = null)
+		public ServerOptions(MailAuthenticationOptions? mailAuthenticationOptions = null)
 		{
-			DnsServerEndpoint = dnsServerEndpoint;
 			MailAuthenticationOptions = mailAuthenticationOptions ?? new();
-
-			if (MailAuthenticationOptions.AnyMechanismEnabled)
-				DnsServerEndpoint = dnsServerEndpoint ?? new IPEndPoint(IPAddress.Parse("1.1.1.1"), 53);
 		}
 	}
 }
