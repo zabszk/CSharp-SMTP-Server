@@ -3,10 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using DnsClient;
-using DnsClient.Data.Records;
-using DnsClient.Enums;
-using DnsClient.Logging;
+using CSharp_SMTP_Server.Misc;
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace CSharp_SMTP_Server.Protocol.SPF;
@@ -16,55 +13,6 @@ namespace CSharp_SMTP_Server.Protocol.SPF;
 /// </summary>
 public class SpfValidator
 {
-	/// <summary>
-	/// DNS Client used to validate SPF records
-	/// </summary>
-	public readonly DnsClient.DnsClient DnsClient;
-
-	#region Constructors
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="server">SMTP server which configuration should be used</param>
-	public SpfValidator(SMTPServer server) => DnsClient = server.DnsClient ?? throw new ArgumentException("Server has a null DnsClient", nameof(server));
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsClient">DNS client used for SPF validation</param>
-	public SpfValidator(DnsClient.DnsClient dnsClient) => DnsClient = dnsClient;
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerEndpoint">DNS server endpoint</param>
-	/// <param name="dnsClientOptions">DNS client options</param>
-	public SpfValidator(EndPoint dnsServerEndpoint, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerEndpoint, dnsClientOptions)) { }
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerEndpoint">DNS server endpoint</param>
-	/// <param name="errorLogging">DNS client error logging interface</param>
-	public SpfValidator(EndPoint dnsServerEndpoint, IErrorLogging? errorLogging) : this(dnsServerEndpoint, new DnsClientOptions {ErrorLogging = errorLogging}) { }
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerAddress">DNS server IP address</param>
-	/// <param name="dnsServerPort">DNS server port</param>
-	/// <param name="dnsClientOptions">DNS client options</param>
-	public SpfValidator(IPAddress dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
-
-	/// <summary>
-	/// Class constructor
-	/// </summary>
-	/// <param name="dnsServerAddress">DNS server IP address</param>
-	/// <param name="dnsServerPort">DNS server port</param>
-	/// <param name="dnsClientOptions">DNS client options</param>
-	public SpfValidator(string dnsServerAddress, ushort dnsServerPort = 53, DnsClientOptions? dnsClientOptions = null) : this(new DnsClient.DnsClient(dnsServerAddress, dnsServerPort, dnsClientOptions)) { }
-	#endregion
-
 	/// <summary>
 	/// RFC 7208 (SPF) check_host() function
 	/// Authenticates remote SMTP server.
@@ -79,23 +27,7 @@ public class SpfValidator
 		if (ipAddress.IsIPv4MappedToIPv6)
 			ipAddress = ipAddress.MapToIPv4();
 
-		var txtQuery = await DnsClient.Query(domain, QType.TXT);
-
-		if (txtQuery.ErrorCode != DnsErrorCode.NoError || txtQuery.Records == null)
-			return ValidationResult.Temperror;
-
-		string? record = null;
-
-		foreach (var r in txtQuery.Records)
-		{
-			if (r is not DnsRecord.TXTRecord t || !t.Text.StartsWith("v=spf1 ", StringComparison.Ordinal))
-				continue;
-
-			if (record != null)
-				return ValidationResult.Permerror;
-
-			record = t.Text;
-		}
+		var record = await DnsLookup.QueryTxtRecordWithPrefixAsync(domain, "v=spf1 ");
 
 		if (record == null)
 			return ValidationResult.None;

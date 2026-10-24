@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using CSharp_SMTP_Server.Misc;
 using CSharp_SMTP_Server.Protocol.Commands;
-using DnsClient.Data.Records;
-using DnsClient.Enums;
 
 namespace CSharp_SMTP_Server.Protocol.DMARC;
 
@@ -135,28 +134,7 @@ public class DmarcValidator
 		return record != null ? ProcessRecord(transaction, record, fromDomain, fromOrgDomain, isSubdomain) : ValidationResult.None;
 	}
 
-	private async Task<string?> GetDmarcRecord(string domain)
-	{
-		var dmarcQuery = await _server.DnsClient!.Query("_dmarc." + domain, QType.TXT);
-
-		if (dmarcQuery.ErrorCode != DnsErrorCode.NoError || dmarcQuery.Records == null)
-			return null;
-
-		string? record = null;
-
-		foreach (var r in dmarcQuery.Records)
-		{
-			if (r is not DnsRecord.TXTRecord t || !t.Text.StartsWith("v=DMARC1;", StringComparison.Ordinal))
-				continue;
-
-			if (record != null)
-				return null;
-
-			record = t.Text;
-		}
-
-		return record;
-	}
+	private static async Task<string?> GetDmarcRecord(string domain) => await DnsLookup.QueryTxtRecordWithPrefixAsync("_dmarc." + domain, "v=DMARC1;");
 
 	private ValidationResult ProcessRecord(MailTransaction transaction, string record, string fromDomain, string fromOrgDomain, bool isSubdomain)
 	{

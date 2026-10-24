@@ -38,13 +38,12 @@ public class DkimValidator
 	/// <summary>
 	/// Class constructor
 	/// </summary>
-	/// <param name="dnsClient">DNS client used for DKIM validation</param>
 	/// <param name="minimumRsaKeyLength">Minimum RSA key length</param>
 	/// <param name="allowSha1">If false, all SHA1 based signatures are considered invalid</param>
 	// ReSharper disable once MemberCanBePrivate.Global
-	public DkimValidator(DnsClient.DnsClient dnsClient, int minimumRsaKeyLength = 2048, bool allowSha1 = false) : this(new DkimKeyLocator(dnsClient), minimumRsaKeyLength, allowSha1) { }
+	public DkimValidator(int minimumRsaKeyLength = 2048, bool allowSha1 = false) : this(new DkimKeyLocator(), minimumRsaKeyLength, allowSha1) { }
 
-	internal DkimValidator(SMTPServer server) : this(server.DnsClient!, server.Options.MailAuthenticationOptions.DkimOptions.MinimumKeyLength, server.Options.MailAuthenticationOptions.DkimOptions.AllowSha1) { }
+	internal DkimValidator(SMTPServer server) : this(server.Options.MailAuthenticationOptions.DkimOptions.MinimumKeyLength, server.Options.MailAuthenticationOptions.DkimOptions.AllowSha1) { }
 
 	/// <summary>
 	/// Validates Mail Transaction using DMARC
@@ -63,7 +62,7 @@ public class DkimValidator
 
 			return await Verifier.VerifyAsync(FormatOptions.Default, transaction.ParsedMessage, transaction.ParsedMessage.Headers[headerIndex]);
 		}
-		catch
+		catch (Exception e)
 		{
 			return DkimValidationResult.Temperror;
 		}

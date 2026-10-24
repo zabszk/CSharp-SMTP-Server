@@ -32,11 +32,6 @@ namespace CSharp_SMTP_Server
 		public readonly ServerOptions Options;
 
 		/// <summary>
-		/// DNS Client used for email messages authentication
-		/// </summary>
-		public readonly DnsClient.DnsClient? DnsClient;
-
-		/// <summary>
 		/// SPF validator
 		/// </summary>
 		public readonly SpfValidator? SpfValidator;
@@ -80,18 +75,13 @@ namespace CSharp_SMTP_Server
 			Options = options ?? new();
 			MailDeliveryInterface = deliveryInterface;
 			LoggerInterface = loggerInterface;
-			Certificate = certificate;
+			this.Certificate = certificate;
 
-			if (Options.DnsServerEndpoint != null)
-			{
-				DnsClient = new DnsClient.DnsClient(Options.DnsServerEndpoint, new DnsClientOptions {ErrorLogging = new DnsLogger(this)});
-
-				if (Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
-					DkimValidator = new DkimValidator(this);
-			}
+			if (Options.DnsServerEndpoint != null && Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
+				DkimValidator = new DkimValidator(this);
 
 			if (Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
-				SpfValidator = new SpfValidator(this);
+				SpfValidator = new SpfValidator();
 
 			if (Options.MailAuthenticationOptions.DmarcOptions.ValidateDmarc)
 				DmarcValidator = new DmarcValidator(this);
