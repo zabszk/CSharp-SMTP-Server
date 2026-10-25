@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CSharp_SMTP_Server.Config;
 using CSharp_SMTP_Server.Networking;
 using CSharp_SMTP_Server.Protocol.DKIM;
+using CSharp_SMTP_Server.Protocol.DMARC;
 using CSharp_SMTP_Server.Protocol.Responses;
 using CSharp_SMTP_Server.Protocol.SPF;
 using static System.FormattableString;
@@ -315,7 +316,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									return;
 							}
 
-							ProcessAddress(processor.Server.Options, processor.Transaction.GetFrom, out var fromDomain);
+							var fromDomain = DmarcValidator.GetFromDomain(processor.Transaction.GetFrom);
 							processor.Transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; dmarc={dmarcValidation.ToString().ToLowerInvariant()} header.from={fromDomain ?? "(none)"}");
 						}
 					}
@@ -346,16 +347,22 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 					return;
 				}
 
-				processor.Counter += (ulong)dt.Length;
+				string text;
+
+				if (dt.Length > 1 && dt[0] == '.' && dt[1] == '.')
+					text = dt[1..];
+				else text = dt;
+
+				processor.Counter += (ulong)text.Length;
 				if (processor.Server.Options.MessageCharactersLimit == 0 ||
 				    processor.Server.Options.MessageCharactersLimit >= processor.Counter)
 				{
-					processor.DataBuilder!.AppendLine(dt);
+					processor.DataBuilder!.AppendLine(text);
 				}
 			}
 		}
 
-		internal static string? ProcessAddress(ServerOptions options, string? data, out string? domain)
+		private static string? ProcessAddress(ServerOptions options, string? data, out string? domain)
 		{
 			domain = null;
 			if (data == null)

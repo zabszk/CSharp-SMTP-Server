@@ -317,6 +317,9 @@ namespace CSharp_SMTP_Server.Networking
 					Secure = true;
 					Encryption = ConnectionEncryption.StartTls;
 					await ((SslStream)_stream).AuthenticateAsServerAsync(Server.Certificate, false, Server.Options.Protocols, true);
+					_protocolVersion = 0;
+					EhloDomain = null;
+					Transaction = null;
 					_reader = new StreamReader(_stream);
 					break;
 

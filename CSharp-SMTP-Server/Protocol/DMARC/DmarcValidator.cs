@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using CSharp_SMTP_Server.Misc;
-using CSharp_SMTP_Server.Protocol.Commands;
 
 namespace CSharp_SMTP_Server.Protocol.DMARC;
 
@@ -115,12 +114,7 @@ public class DmarcValidator
 		if (PublicSuffixes == null)
 			throw new Exception("Suffix list is not loaded!.");
 
-		var from = transaction.GetFrom;
-
-		if (from == null)
-			return ValidationResult.None;
-
-		TransactionCommands.ProcessAddress(_server.Options, from, out var fromDomain);
+		var fromDomain = GetFromDomain(transaction.GetFrom);
 
 		if (fromDomain == null)
 			return ValidationResult.None;
@@ -132,6 +126,19 @@ public class DmarcValidator
 		record ??= await GetDmarcRecord(fromOrgDomain);
 
 		return record != null ? ProcessRecord(transaction, record, fromDomain, fromOrgDomain, isSubdomain) : ValidationResult.None;
+	}
+
+	internal static string? GetFromDomain(string? address)
+	{
+		if (string.IsNullOrWhiteSpace(address))
+			return null;
+
+		var atIndex = address.LastIndexOf('@');
+		if (atIndex <= 0 || atIndex == address.Length - 1)
+			return null;
+
+		var domain = address[(atIndex + 1)..];
+		return domain.Contains('.', StringComparison.Ordinal) ? domain : null;
 	}
 
 	private static async Task<string?> GetDmarcRecord(string domain) => await DnsLookup.QueryTxtRecordWithPrefixAsync("_dmarc." + domain, "v=DMARC1;");
