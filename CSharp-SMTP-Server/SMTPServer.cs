@@ -88,7 +88,7 @@ namespace CSharp_SMTP_Server
 						foreach (var port in parameter.RegularPorts)
 							_listeners.Add(new Listener(parameter.IpAddress, port, this, false, parameter.DualMode));
 
-					if (parameter.TlsPorts != null)
+					if (parameter.TlsPorts != null && Certificate != null)
 						foreach (var port in parameter.TlsPorts)
 							_listeners.Add(new Listener(parameter.IpAddress, port, this, true, parameter.DualMode));
 				}

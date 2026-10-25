@@ -19,15 +19,17 @@ namespace CSharp_SMTP_Server.Networking
 
 		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure, bool dualMode)
 		{
+			if (secure && s.Certificate == null)
+				throw new Exception("Can't create a secure/TLS listener without specifying server TLS certificate.");
+
 			Server = s;
 			_secure = secure;
 			ClientProcessors = new List<ClientProcessor>();
 
 			var ipEndPoint = new IPEndPoint(address, port);
-			_listener = new TcpListener(ipEndPoint)
-			{
-				Server = { DualMode = dualMode }
-			};
+			_listener = new TcpListener(ipEndPoint);
+			if (address.AddressFamily == AddressFamily.InterNetworkV6)
+				_listener.Server.DualMode = dualMode;
 			_listenerThread = new Thread(Listen)
 			{
 				Name = "Listening on port " + port,
