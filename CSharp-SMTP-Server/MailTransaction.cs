@@ -64,22 +64,22 @@ namespace CSharp_SMTP_Server
 		/// Sender of the message specified in the header
 		/// Note that this is NOT validated using SPF.
 		/// </summary>
-		public string? GetFrom => ParsedMessage.From.Count > 0 ? ParsedMessage.From[0].Name : null;
+		public string? GetFrom => ParsedMessage.From.Mailboxes.Count() > 0 ? ParsedMessage.From.Mailboxes.First().Address : null;
 
 		/// <summary>
 		/// Recipients specified in the header (To)
 		/// </summary>
-		public IEnumerable<string> GetTo() => ParsedMessage.To.Select(x => x.Name);
+		public IEnumerable<string> GetTo() => ParsedMessage.To.Mailboxes.Select(x => x.Address);
 
 		/// <summary>
 		/// Recipients specified in the header (CC)
 		/// </summary>
-		public IEnumerable<string> GetCc() => ParsedMessage.Cc.Select(x => x.Name);
+		public IEnumerable<string> GetCc() => ParsedMessage.Cc.Mailboxes.Select(x => x.Address);
 
 		/// <summary>
 		/// Recipients specified in the header (BCC)
 		/// </summary>
-		public IEnumerable<string> GetBcc() => ParsedMessage.Bcc.Select(x => x.Name);
+		public IEnumerable<string> GetBcc() => ParsedMessage.Bcc.Mailboxes.Select(x => x.Address);
 
 		/// <summary>
 		/// Returns email body without headers

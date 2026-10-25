@@ -32,8 +32,6 @@ namespace CSharp_SMTP_Server.Networking
 
 			if (Server.Options.MailAuthenticationOptions.SpfOptions.ValidateSpf)
 				SpfResultsCache = new();
-
-			Init();
 		}
 
 		internal readonly Dictionary<string, ValidationResult>? SpfResultsCache;
@@ -63,21 +61,38 @@ namespace CSharp_SMTP_Server.Networking
 		private ushort _protocolVersion;
 		private bool _dispose;
 
-		private async void Init()
+		internal async Task Init()
 		{
-			if (Secure)
+			try
 			{
-				Encryption = ConnectionEncryption.Tls;
-				_stream = new SslStream(_innerStream, false);
-				await ((SslStream)_stream).AuthenticateAsServerAsync(Server.Certificate!, false, Server.Options.Protocols, true);
+				if (Secure)
+				{
+					Encryption = ConnectionEncryption.Tls;
+					_stream = new SslStream(_innerStream, false);
+					var handshake = ((SslStream)_stream).AuthenticateAsServerAsync(Server.Certificate!, false, Server.Options.Protocols, true);
+					var timeout = Server.Options.ClientIdleTimeout;
+					if (timeout > 0 && await Task.WhenAny(handshake, Task.Delay((int)Math.Min(timeout, int.MaxValue))) != handshake)
+						throw new TimeoutException("TLS handshake timed out.");
+					await handshake;
+				}
+				else
+					await Greet();
+
+				if (!_dispose)
+					_reader = new StreamReader(_stream);
+
+				if (!_dispose)
+					_ = Receive();
 			}
-			else
-				await Greet();
-
-			if (!_dispose)
-				_reader = new StreamReader(_stream);
-
-			_ = Receive();
+			catch (TimeoutException)
+			{
+				Dispose();
+			}
+			catch (Exception e)
+			{
+				Server.LoggerInterface?.LogError("[Client initialization] Exception: " + e.GetType().FullName + ", " + e.StackTrace + ", " + e.Message);
+				Dispose();
+			}
 		}
 
 		private async Task Greet()
@@ -117,22 +132,31 @@ namespace CSharp_SMTP_Server.Networking
 			if (!_greetSent)
 				return;
 
-			while (!_t.IsCancellationRequested && !_reader!.EndOfStream && _client.Connected && _stream.CanRead)
+			while (!_t.IsCancellationRequested && _client.Connected && _stream.CanRead)
 			{
 				try
 				{
-					var read = await _reader.ReadLineAsync();
+					var read = await ReadLine();
 
 					if (read == null)
-						continue;
+						break;
 
 					await ProcessResponse(read);
+				}
+				catch (InvalidDataException)
+				{
+					await WriteCode(500, "5.5.2", "Line too long.");
+					break;
 				}
 				catch (ObjectDisposedException)
 				{
 					break;
 				}
 				catch (IOException)
+				{
+					break;
+				}
+				catch (OperationCanceledException)
 				{
 					break;
 				}
@@ -148,6 +172,43 @@ namespace CSharp_SMTP_Server.Networking
 
 			if (!_dispose)
 				Dispose();
+		}
+
+		private async Task<string?> ReadLine()
+		{
+			var line = new StringBuilder();
+			var character = new char[1];
+			using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_t);
+			var idleTimeout = Server.Options.ClientIdleTimeout;
+			if (idleTimeout > 0)
+				timeout.CancelAfter((int)Math.Min(idleTimeout, int.MaxValue));
+
+			while (true)
+			{
+				int read;
+				try
+				{
+					read = await _reader!.ReadAsync(character.AsMemory(), timeout.Token);
+				}
+				catch (OperationCanceledException) when (!_t.IsCancellationRequested)
+				{
+					return null;
+				}
+
+				if (read == 0)
+					return line.Length == 0 ? null : line.ToString();
+
+				if (character[0] == '\n')
+					return line.Length > 0 && line[line.Length - 1] == '\r'
+						? line.ToString(0, line.Length - 1)
+						: line.ToString();
+
+				var limit = Server.Options.LineCharactersLimit;
+				if (limit == 0 || line.Length >= limit)
+					throw new InvalidDataException("SMTP line exceeded the configured length limit.");
+
+				line.Append(character[0]);
+			}
 		}
 
 		internal async Task WriteText(string text)
@@ -339,8 +400,8 @@ namespace CSharp_SMTP_Server.Networking
 			_client.Close();
 			_client.Dispose();
 
-			if (!dontRemove && _listener.ClientProcessors.Contains(this))
-				_listener.ClientProcessors.Remove(this);
+			if (!dontRemove)
+				_listener.RemoveProcessor(this);
 		}
 	}
 }

@@ -35,6 +35,23 @@ namespace CSharp_SMTP_Server.Config
 		public uint MessageCharactersLimit = 10485760;
 
 		/// <summary>
+		/// Maximum characters accepted in one SMTP line, including commands and message data lines.
+		/// Default: 1000
+		/// </summary>
+		public uint LineCharactersLimit = 1000;
+
+		/// <summary>
+		/// Maximum time to wait for TLS negotiation or the next complete SMTP line, in milliseconds.
+		/// Set to 0 to disable the timeout. Default: 120000
+		/// </summary>
+		public uint ClientIdleTimeout = 120000;
+
+		/// <summary>
+		/// Maximum simultaneous clients per listener. Set to 0 to disable the limit. Default: 1000
+		/// </summary>
+		public uint MaximumConcurrentClients = 1000;
+
+		/// <summary>
 		/// Recipients limit per message.
 		/// Set to 0 to disable.
 		/// Default: 50

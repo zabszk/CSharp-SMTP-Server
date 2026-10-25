@@ -14,6 +14,7 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly TcpListener _listener;
 		private readonly Thread _listenerThread;
 		private readonly bool _secure;
+		private readonly object _clientsLock = new();
 		private bool _dispose;
 
 		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure, bool dualMode)
@@ -46,7 +47,13 @@ namespace CSharp_SMTP_Server.Networking
 					try
 					{
 						var client = _listener.AcceptTcpClient();
-						ClientProcessors.Add(new ClientProcessor(client, this, _secure));
+						var processor = new ClientProcessor(client, this, _secure);
+						if (!TryAddProcessor(processor))
+						{
+							client.Dispose();
+							continue;
+						}
+						_ = processor.Init();
 					}
 					catch (Exception e)
 					{
@@ -61,14 +68,38 @@ namespace CSharp_SMTP_Server.Networking
 			}
 		}
 
+		private bool TryAddProcessor(ClientProcessor processor)
+		{
+			lock (_clientsLock)
+			{
+				var limit = Server.Options.MaximumConcurrentClients;
+				if (_dispose || (limit > 0 && ClientProcessors.Count >= limit))
+					return false;
+
+				ClientProcessors.Add(processor);
+				return true;
+			}
+		}
+
+		internal void RemoveProcessor(ClientProcessor processor)
+		{
+			lock (_clientsLock)
+				ClientProcessors.Remove(processor);
+		}
+
 		public void Dispose()
 		{
-			_dispose = true;
-
 			_listener.Stop();
 
-			foreach (var processor in ClientProcessors)
-				processor.Dispose(true, true);
+			lock (_clientsLock)
+			{
+				if (_dispose)
+					return;
+
+				_dispose = true;
+				foreach (var processor in ClientProcessors)
+					processor.Dispose(true, true);
+			}
 		}
 	}
 }

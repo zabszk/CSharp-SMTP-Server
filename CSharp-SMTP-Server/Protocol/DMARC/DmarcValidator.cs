@@ -153,7 +153,7 @@ public class DmarcValidator
 			else if (record.Contains(";p=quarantine", StringComparison.OrdinalIgnoreCase)) action = DmarcResult.Quarantine;
 		}
 
-		if (transaction.SPFValidationResult != ValidationResult.None && transaction.SPFValidationResult != ValidationResult.Neutral)
+		if (transaction.SPFValidationResult == ValidationResult.Pass)
 		{
 			if (fromDomain.Equals(transaction.FromDomain, StringComparison.OrdinalIgnoreCase))
 				return ValidationResult.Pass; //SPF Aligned (strict)
