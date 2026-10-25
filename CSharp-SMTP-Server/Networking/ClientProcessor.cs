@@ -69,11 +69,7 @@ namespace CSharp_SMTP_Server.Networking
 				{
 					Encryption = ConnectionEncryption.Tls;
 					_stream = new SslStream(_innerStream, false);
-					var handshake = ((SslStream)_stream).AuthenticateAsServerAsync(Server.Certificate!, false, Server.Options.Protocols, true);
-					var timeout = Server.Options.ClientIdleTimeout;
-					if (timeout > 0 && await Task.WhenAny(handshake, Task.Delay((int)Math.Min(timeout, int.MaxValue))) != handshake)
-						throw new TimeoutException("TLS handshake timed out.");
-					await handshake;
+					await AuthenticateAsServerWithTimeout((SslStream)_stream);
 				}
 				else
 					await Greet();
@@ -93,6 +89,20 @@ namespace CSharp_SMTP_Server.Networking
 				Server.LoggerInterface?.LogError("[Client initialization] Exception: " + e.GetType().FullName + ", " + e.StackTrace + ", " + e.Message);
 				Dispose();
 			}
+		}
+
+		private async Task AuthenticateAsServerWithTimeout(SslStream sslStream)
+		{
+			var handshake = sslStream.AuthenticateAsServerAsync(Server.Certificate!, false, Server.Options.Protocols, true);
+			var timeout = Server.Options.ClientIdleTimeout;
+			if (timeout > 0 && await Task.WhenAny(handshake, Task.Delay((int)Math.Min(timeout, int.MaxValue))) != handshake)
+			{
+				Dispose();
+				_ = handshake.ContinueWith(task => _ = task.Exception, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+				throw new TimeoutException("TLS handshake timed out.");
+			}
+
+			await handshake;
 		}
 
 		private async Task Greet()
@@ -316,8 +326,9 @@ namespace CSharp_SMTP_Server.Networking
 					_stream = new SslStream(_innerStream, false);
 					Secure = true;
 					Encryption = ConnectionEncryption.StartTls;
-					await ((SslStream)_stream).AuthenticateAsServerAsync(Server.Certificate, false, Server.Options.Protocols, true);
+					await AuthenticateAsServerWithTimeout((SslStream)_stream);
 					_protocolVersion = 0;
+					Username = null;
 					EhloDomain = null;
 					Transaction = null;
 					_reader = new StreamReader(_stream);
