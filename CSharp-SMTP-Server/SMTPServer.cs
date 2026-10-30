@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -24,7 +24,7 @@ namespace CSharp_SMTP_Server
 		/// <summary>
 		/// Library version
 		/// </summary>
-		public const string VersionString = "1.1.6";
+		public const string VersionString = "1.1.8";
 
 		/// <summary>
 		/// Server options
