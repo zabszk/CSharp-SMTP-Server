@@ -241,7 +241,7 @@ namespace CSharp_SMTP_Server.Networking
 						: (line.ToString(), false);
 
 				var limit = Server.Options.LineCharactersLimit;
-				if (limit == 0 || line.Length >= limit)
+				if (limit != 0 && line.Length >= limit)
 					throw new InvalidDataException("SMTP line exceeded the configured length limit.");
 
 				line.Append(character[0]);

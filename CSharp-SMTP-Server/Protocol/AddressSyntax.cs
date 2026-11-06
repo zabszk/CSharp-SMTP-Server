@@ -14,9 +14,10 @@ internal static class AddressSyntax
 	/// <param name="data">Command argument</param>
 	/// <param name="maxAddressLength">Maximum length of the whole address</param>
 	/// <param name="maxDomainLength">Maximum length of the domain</param>
-	/// <param name="domain">Domain of the address, null if the address is invalid</param>
-	/// <returns>Validated address or null if the argument is invalid</returns>
-	internal static string? ParsePath(string? data, uint maxAddressLength, uint maxDomainLength, out string? domain)
+	/// <param name="allowNullPath">Whether the null path ("&lt;&gt;", used by bounces in MAIL FROM) is allowed</param>
+	/// <param name="domain">Domain of the address, null if the address is invalid or it's the null path</param>
+	/// <returns>Validated address, empty string for the null path or null if the argument is invalid</returns>
+	internal static string? ParsePath(string? data, uint maxAddressLength, uint maxDomainLength, bool allowNullPath, out string? domain)
 	{
 		domain = null;
 		if (data == null)
@@ -38,7 +39,10 @@ internal static class AddressSyntax
 			return null;
 
 		var address = path[1..close];
-		if (address.Length == 0 || address.Length > maxAddressLength)
+		if (address.Length == 0)
+			return allowNullPath ? string.Empty : null;
+
+		if (address.Length > maxAddressLength)
 			return null;
 
 		var at = address.LastIndexOf('@');

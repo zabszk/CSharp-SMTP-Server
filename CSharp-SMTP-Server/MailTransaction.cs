@@ -35,13 +35,15 @@ namespace CSharp_SMTP_Server
 		public readonly string? EhloDomain;
 
 		/// <summary>
-		/// Mail sender
+		/// Mail sender (envelope MAIL FROM address).
+		/// Empty string for the null reverse-path ("MAIL FROM:&lt;&gt;"), which is used by bounces and other delivery notifications.
 		/// </summary>
 		public readonly string From;
 
 		/// <summary>
 		/// Mail sender domain
-		/// If SPF validation is enabled, this domain is validated
+		/// If SPF validation is enabled, this domain is validated.
+		/// For the null reverse-path, this is the HELO/EHLO domain (RFC 7208, section 2.4), or an empty string if it's not a valid domain.
 		/// </summary>
 		public readonly string FromDomain;
 

@@ -10,7 +10,7 @@
     <RootNamespace>CSharp_SMTP_Server</RootNamespace>
     <Authors>Łukasz Jurczyk</Authors>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Copyright>Copyright by Łukasz Jurczyk, 2019-2023</Copyright>
+    <Copyright>Copyright by Łukasz Jurczyk, 2019-2026</Copyright>
     <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
     <RepositoryType>GIT</RepositoryType>

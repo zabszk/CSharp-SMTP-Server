@@ -20,7 +20,7 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// <summary>
 		/// Called when client sets \"From\" address.
 		/// </summary>
-		/// <param name="source">\"From\" value</param>
+		/// <param name="source">\"From\" value (empty string for the null reverse-path, used by bounces)</param>
 		/// <param name="ep">Remote endpoint of the connection</param>
 		/// <param name="username">Username (if authenticated)</param>
 		/// <returns>Whether the sender is authorized for this \"From\" value</returns>
@@ -30,7 +30,7 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// Called when client sets is checked by SPF.
 		/// This is NOT called when SPF validation equals to \"Fail\".
 		/// </summary>
-		/// <param name="source">\"From\" value</param>
+		/// <param name="source">\"From\" value (empty string for the null reverse-path, used by bounces)</param>
 		/// <param name="ep">Remote endpoint of the connection</param>
 		/// <param name="username">Username (if authenticated)</param>
 		/// <param name="validationResult">SPF validation result</param>
@@ -40,7 +40,7 @@ namespace CSharp_SMTP_Server.Interfaces
 		/// <summary>
 		/// Called when client adds a recipient.
 		/// </summary>
-		/// <param name="source">\"From\" value</param>
+		/// <param name="source">\"From\" value (empty string for the null reverse-path, used by bounces)</param>
 		/// <param name="destination">Recipient being added</param>
 		/// <param name="authenticated">User authentication status</param>
 		/// <param name="username">Username (if authenticated)</param>

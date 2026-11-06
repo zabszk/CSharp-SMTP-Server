@@ -16,7 +16,7 @@ namespace CSharp_SMTP_Server.Networking
 		private readonly Thread _listenerThread;
 		private readonly bool _secure;
 		private readonly object _clientsLock = new();
-		private bool _dispose;
+		private volatile bool _dispose;
 
 		internal Listener(IPAddress address, ushort port, SMTPServer s, bool secure, bool dualMode)
 		{
@@ -104,16 +104,22 @@ namespace CSharp_SMTP_Server.Networking
 
 		public void Dispose()
 		{
-			_listener.Stop();
-
 			lock (_clientsLock)
 			{
 				if (_dispose)
 					return;
 
 				_dispose = true;
+			}
+
+			_listener.Stop();
+
+			lock (_clientsLock)
+			{
 				foreach (var processor in ClientProcessors)
 					processor.Dispose(true, true);
+
+				ClientProcessors.Clear();
 			}
 		}
 	}

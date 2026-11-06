@@ -24,10 +24,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 
 				case "MAIL FROM":
 					{
-						var address = AddressSyntax.ParsePath(data, processor.Server.Options.EmailAddressMaximumLength, processor.Server.Options.InternetDomainNameMaximumLength, out var domain);
+						var address = AddressSyntax.ParsePath(data, processor.Server.Options.EmailAddressMaximumLength, processor.Server.Options.InternetDomainNameMaximumLength, true, out var domain);
 						if (address == null) await processor.WriteCode(501, "5.5.2");
 						else
 						{
+							// Null reverse-path (bounces) - RFC 7208, section 2.4: SPF checks the HELO/EHLO domain instead
+							if (address.Length == 0)
+								domain = AddressSyntax.IsValidDomain(processor.EhloDomain) ? processor.EhloDomain : null;
+
 							if (processor.Server.Filter != null)
 							{
 								var result = await processor.Server.Filter.IsAllowedSender(address, processor.RemoteEndPoint, processor.Username);
@@ -79,12 +83,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 									}
 								}
 
-								if (processor.SpfResultsCache!.TryGetValue(domain!, out spfRes))
+								if (domain == null)
+									spfValidation = ValidationResult.None; // Null reverse-path without a valid HELO/EHLO domain
+								else if (processor.SpfResultsCache!.TryGetValue(domain, out spfRes))
 									spfValidation = spfRes;
 								else
 								{
-									spfValidation = await SpfValidator.CheckHost(processor.RemoteEndPoint!.Address, domain!);
-									processor.SpfResultsCache.Add(domain!, spfValidation);
+									spfValidation = await SpfValidator.CheckHost(processor.RemoteEndPoint!.Address, domain);
+									processor.SpfResultsCache.Add(domain, spfValidation);
 								}
 
 								switch (spfValidation)
@@ -114,7 +120,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 								}
 							}
 
-							processor.Transaction = new MailTransaction(processor.EhloDomain, address, domain!, spfValidation, ehloSpfValidation)
+							processor.Transaction = new MailTransaction(processor.EhloDomain, address, domain ?? string.Empty, spfValidation, ehloSpfValidation)
 							{
 								RemoteEndPoint = processor.RemoteEndPoint,
 								Encryption = processor.Encryption
@@ -132,7 +138,7 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 							return;
 						}
 
-						var address = AddressSyntax.ParsePath(data, processor.Server.Options.EmailAddressMaximumLength, processor.Server.Options.InternetDomainNameMaximumLength, out _);
+						var address = AddressSyntax.ParsePath(data, processor.Server.Options.EmailAddressMaximumLength, processor.Server.Options.InternetDomainNameMaximumLength, false, out _);
 						if (address == null) await processor.WriteCode(501);
 						else
 						{
@@ -286,7 +292,14 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			transaction.AddHeader("Received", received);
 
 			if (transaction.SPFValidationResult != ValidationResult.UserAuthenticated && transaction.SPFValidationResult != ValidationResult.CheckDisabled)
-				transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={transaction.SPFValidationResult.ToString().ToLowerInvariant()} smtp.mailfrom={transaction.FromDomain}");
+			{
+				// For the null reverse-path, the checked identity is the HELO/EHLO domain
+				var spfIdentity = transaction.FromDomain.Length == 0 ? string.Empty
+					: transaction.From.Length == 0 ? $" smtp.helo={transaction.FromDomain}"
+					: $" smtp.mailfrom={transaction.FromDomain}";
+
+				transaction.AddHeader("Authentication-Results", $"{processor.Server.Options.ServerName}; spf={transaction.SPFValidationResult.ToString().ToLowerInvariant()}{spfIdentity}");
+			}
 
 			if (processor.Server.Options.MailAuthenticationOptions.DkimOptions.ValidateDkim)
 			{
