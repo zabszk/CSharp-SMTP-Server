@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CSharp_SMTP_Server.Networking
 {
@@ -49,13 +50,25 @@ namespace CSharp_SMTP_Server.Networking
 					try
 					{
 						var client = _listener.AcceptTcpClient();
-						var processor = new ClientProcessor(client, this, _secure);
+						ClientProcessor processor;
+						try
+						{
+							processor = new ClientProcessor(client, this, _secure);
+						}
+						catch
+						{
+							client.Dispose();
+							throw;
+						}
+
 						if (!TryAddProcessor(processor))
 						{
 							client.Dispose();
 							continue;
 						}
-						_ = processor.Init();
+
+						// Run on the thread pool so that slow/blocking connection filters can't stall accepting
+						_ = Task.Run(processor.Init);
 					}
 					catch (Exception e)
 					{

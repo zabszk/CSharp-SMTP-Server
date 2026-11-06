@@ -132,15 +132,29 @@ namespace CSharp_SMTP_Server.Networking
 		{
 			if (Secure)
 			{
-				while (!_t.IsCancellationRequested && !((SslStream)_stream).IsAuthenticated)
-					await Task.Delay(5, _t);
+				try
+				{
+					while (!_t.IsCancellationRequested && !((SslStream)_stream).IsAuthenticated)
+						await Task.Delay(5, _t);
 
-				if (!_greetSent)
-					await Greet();
+					if (!_greetSent && !_dispose)
+						await Greet();
+				}
+				catch (Exception e)
+				{
+					if (e is not (OperationCanceledException or ObjectDisposedException or IOException))
+						Server.LoggerInterface?.LogError("[Client greeting] Exception: " + e.GetType().FullName + ", " + e.StackTrace + ", " + e.Message);
+
+					Dispose();
+					return;
+				}
 			}
 
 			if (!_greetSent)
+			{
+				Dispose();
 				return;
+			}
 
 			while (!_t.IsCancellationRequested && _client.Connected && _stream.CanRead)
 			{
@@ -395,27 +409,34 @@ namespace CSharp_SMTP_Server.Networking
 			if (_dispose) return;
 			_dispose = true;
 
+			// Every step is isolated, so a failure (e.g. on an already reset connection)
+			// can never prevent the socket from being closed or the processor from being removed.
 			if (reset)
-				_client.LingerState = Reset;
+				TryDispose(() => _client.LingerState = Reset);
 
-			_ts.Cancel();
+			TryDispose(() => _ts.Cancel());
 
 			Transaction = null;
 
-			_reader?.Close();
-			_reader?.Dispose();
-
-			_stream.Close();
-			_stream.Dispose();
-
-			_innerStream.Close();
-			_innerStream.Dispose();
-
-			_client.Close();
-			_client.Dispose();
+			TryDispose(() => _reader?.Dispose());
+			TryDispose(() => _stream.Dispose());
+			TryDispose(() => _innerStream.Dispose());
+			TryDispose(() => _client.Dispose());
 
 			if (!dontRemove)
 				_listener.RemoveProcessor(this);
+		}
+
+		private static void TryDispose(Action action)
+		{
+			try
+			{
+				action();
+			}
+			catch
+			{
+				// Ignored - connection is being torn down
+			}
 		}
 	}
 }
