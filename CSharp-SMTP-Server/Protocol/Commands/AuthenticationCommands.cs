@@ -25,8 +25,25 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 			switch (args[0].ToUpper())
 			{
 				case "LOGIN":
-					processor.CaptureData = 2;
-					await processor.WriteText("334 VXNlcm5hbWU6");
+					if (args.Length > 1)
+					{
+						// Non-standard, but widely used: username passed as initial response
+						var username = Misc.Base64.Base64Decode(args[1]);
+						if (username == null)
+						{
+							await processor.WriteCode(501, "5.5.2", "Invalid base64 data");
+							break;
+						}
+
+						processor.TempUsername = username;
+						processor.CaptureData = 3;
+						await processor.WriteText("334 UGFzc3dvcmQ6");
+					}
+					else
+					{
+						processor.CaptureData = 2;
+						await processor.WriteText("334 VXNlcm5hbWU6");
+					}
 					break;
 
 				case "PLAIN":
