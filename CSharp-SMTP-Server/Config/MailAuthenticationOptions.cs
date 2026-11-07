@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using CSharp_SMTP_Server.Protocol.DMARC;
 
 namespace CSharp_SMTP_Server.Config;
 
@@ -45,6 +46,7 @@ public class MailAuthenticationOptions
 	/// If enabled, the Public Suffix List is downloaded (by default from 3rd PARTY SERVICE!) on server startup.
 	/// You can change the address by changing <see cref="PublicSuffixListUrl"/> variable (eg. to a server hosted by yourself).
 	/// If you want, you can disable this feature and don't use DMARC or manually load the list before starting the server.
+	/// Applies only if <see cref="DmarcOptions.OrganizationalDomainDiscovery"/> is set to <see cref="OrganizationalDomainDiscovery.PublicSuffixList"/>.
 	/// </summary>
 	// ReSharper disable once FieldCanBeMadeReadOnly.Global
 	// ReSharper disable once ConvertToConstant.Global
@@ -167,4 +169,12 @@ public class DmarcOptions
 	/// If enabled, emails that didn't pass DMARC validation with "Quarantine" result will be rejected.
 	/// </summary>
 	public bool RejectDmarcQuarantine = true;
+
+	/// <summary>
+	/// Method used to determine the Organizational Domain and to discover DMARC Policy Records.
+	/// <see cref="OrganizationalDomainDiscovery.DnsTreeWalk"/> (default) follows RFC 9989 (DMARCbis) and doesn't require any external list.
+	/// <see cref="OrganizationalDomainDiscovery.PublicSuffixList"/> follows RFC 7489 and requires the Public Suffix List
+	/// (see <see cref="MailAuthenticationOptions.AutomaticallyDownloadPublicSuffixList"/>).
+	/// </summary>
+	public OrganizationalDomainDiscovery OrganizationalDomainDiscovery = OrganizationalDomainDiscovery.DnsTreeWalk;
 }

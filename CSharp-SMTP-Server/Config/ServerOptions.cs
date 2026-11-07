@@ -36,6 +36,7 @@ namespace CSharp_SMTP_Server.Config
 
 		/// <summary>
 		/// Maximum characters accepted in one SMTP line, including commands and message data lines.
+		/// Set to 0 to disable the limit (not recommended, a client could then send a line of unlimited length).
 		/// Default: 1000
 		/// </summary>
 		public uint LineCharactersLimit = 1000;

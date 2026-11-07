@@ -35,20 +35,33 @@ namespace CSharp_SMTP_Server
 		public readonly string? EhloDomain;
 
 		/// <summary>
-		/// Mail sender
+		/// Mail sender (envelope MAIL FROM address).
+		/// Empty string for the null reverse-path ("MAIL FROM:&lt;&gt;"), which is used by bounces and other delivery notifications.
 		/// </summary>
 		public readonly string From;
 
 		/// <summary>
 		/// Mail sender domain
-		/// If SPF validation is enabled, this domain is validated
+		/// If SPF validation is enabled, this domain is validated.
+		/// For the null reverse-path, this is the HELO/EHLO domain (RFC 7208, section 2.4), or an empty string if it's not a valid domain.
 		/// </summary>
 		public readonly string FromDomain;
 
 		/// <summary>
-		/// Raw message body
+		/// Raw message body.
+		/// Setting it discards the cached <see cref="ParsedMessage"/>, so that it's always parsed from the current raw body.
 		/// </summary>
-		public string RawBody;
+		public string RawBody
+		{
+			get => _rawBody;
+			set
+			{
+				_rawBody = value;
+				_parsedMessage = null;
+			}
+		}
+
+		private string _rawBody = string.Empty;
 
 		/// <summary>
 		/// Subject of the message
@@ -155,8 +168,10 @@ namespace CSharp_SMTP_Server
 		/// <param name="value">Header value</param>
 		public void AddHeader(string name, string value)
 		{
-			RawBody = $"{name}: {value}\r\n{RawBody}";
-			ParsedMessage.Headers.Add(name, value);
+			// Parse before modifying the raw body, otherwise the header would be parsed from the raw body and then added again
+			var parsed = ParsedMessage;
+			_rawBody = $"{name}: {value}\r\n{_rawBody}";
+			parsed.Headers.Insert(0, name, value);
 		}
 
 		/// <inheritdoc />

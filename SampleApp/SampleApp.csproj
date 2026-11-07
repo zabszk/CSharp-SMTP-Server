@@ -7,7 +7,7 @@
         <RepositoryUrl>https://github.com/zabszk/CSharp-SMTP-Server</RepositoryUrl>
         <PackageProjectUrl>https://github.com/zabszk/CSharp-SMTP-Server</PackageProjectUrl>
         <PackageLicenseUrl>https://github.com/zabszk/CSharp-SMTP-Server/blob/master/LICENSE</PackageLicenseUrl>
-        <Copyright>Copyright by Łukasz Jurczyk, 2019-2023</Copyright>
+        <Copyright>Copyright by Łukasz Jurczyk, 2019-2026</Copyright>
         <LangVersion>11</LangVersion>
         <PackageVersion>1.1.6</PackageVersion>
         <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>

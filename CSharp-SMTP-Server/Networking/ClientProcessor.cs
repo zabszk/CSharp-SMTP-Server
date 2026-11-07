@@ -52,6 +52,8 @@ namespace CSharp_SMTP_Server.Networking
 		internal MailTransaction? Transaction;
 		internal StringBuilder? DataBuilder;
 		internal ulong Counter;
+		internal bool DataContainsBareCr;
+		private bool _previousLineEndedWithCrlf;
 
 		internal bool Secure { get; private set; }
 		internal ConnectionEncryption Encryption { get; private set; }
@@ -165,7 +167,14 @@ namespace CSharp_SMTP_Server.Networking
 					if (read == null)
 						break;
 
-					await ProcessResponse(read);
+					var (line, endedWithCrlf) = read.Value;
+
+					// The end of message data is only <CRLF>.<CRLF> (RFC 5321, section 4.1.1.4).
+					// Accepting <LF>.<LF>, <LF>.<CRLF> etc. allows SMTP smuggling.
+					var endOfData = line == "." && endedWithCrlf && _previousLineEndedWithCrlf;
+					_previousLineEndedWithCrlf = endedWithCrlf;
+
+					await ProcessResponse(line, endOfData);
 				}
 				catch (InvalidDataException)
 				{
@@ -198,7 +207,11 @@ namespace CSharp_SMTP_Server.Networking
 				Dispose();
 		}
 
-		private async Task<string?> ReadLine()
+		/// <summary>
+		/// Reads a single line. A bare LF is accepted as a line terminator, but it's reported as not being CRLF.
+		/// </summary>
+		/// <returns>Line (without the line terminator) and whether it was terminated with CRLF, null if the connection was closed or timed out</returns>
+		private async Task<(string Line, bool EndedWithCrlf)?> ReadLine()
 		{
 			var line = new StringBuilder();
 			var character = new char[1];
@@ -220,15 +233,15 @@ namespace CSharp_SMTP_Server.Networking
 				}
 
 				if (read == 0)
-					return line.Length == 0 ? null : line.ToString();
+					return line.Length == 0 ? null : (line.ToString(), false);
 
 				if (character[0] == '\n')
 					return line.Length > 0 && line[line.Length - 1] == '\r'
-						? line.ToString(0, line.Length - 1)
-						: line.ToString();
+						? (line.ToString(0, line.Length - 1), true)
+						: (line.ToString(), false);
 
 				var limit = Server.Options.LineCharactersLimit;
-				if (limit == 0 || line.Length >= limit)
+				if (limit != 0 && line.Length >= limit)
 					throw new InvalidDataException("SMTP line exceeded the configured length limit.");
 
 				line.Append(character[0]);
@@ -262,7 +275,7 @@ namespace CSharp_SMTP_Server.Networking
 
 		internal SMTPServer Server => _listener.Server;
 
-		private async Task ProcessResponse(string response)
+		private async Task ProcessResponse(string response, bool endOfData)
 		{
 			if (!_greetSent)
 				return;
@@ -270,7 +283,7 @@ namespace CSharp_SMTP_Server.Networking
 			switch (CaptureData)
 			{
 				case 1:
-					await TransactionCommands.ProcessData(this, response);
+					await TransactionCommands.ProcessData(this, response, endOfData);
 					return;
 
 				case 2:

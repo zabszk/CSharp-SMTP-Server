@@ -14,6 +14,20 @@ namespace CSharp_SMTP_Server.Protocol.Commands
 				return;
 			}
 
+			// RFC 4954, section 4: AUTH after a successful AUTH, or during a mail transaction, must be rejected.
+			// Otherwise sender checks done at MAIL FROM (as an unauthenticated client) could be bypassed.
+			if (processor.Username != null)
+			{
+				await processor.WriteCode(503, "5.5.1", "Already authenticated.");
+				return;
+			}
+
+			if (processor.Transaction != null)
+			{
+				await processor.WriteCode(503, "5.5.1", "AUTH is not permitted during a mail transaction.");
+				return;
+			}
+
 			if (processor.Server.Options.RequireEncryptionForAuth && !processor.Secure)
 			{
 				await processor.WriteCode(538, "5.7.11");

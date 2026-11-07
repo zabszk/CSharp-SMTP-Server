@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -17,266 +19,404 @@ namespace CSharp_SMTP_Server.Protocol.SPF;
 public static class SpfValidator
 {
 	/// <summary>
+	/// Maximum number of mechanisms and modifiers causing DNS lookups during a single evaluation (RFC 7208, section 4.6.4)
+	/// </summary>
+	private const int MaxDnsLookups = 10;
+
+	/// <summary>
+	/// Maximum number of DNS lookups returning no records during a single evaluation (RFC 7208, section 4.6.4)
+	/// </summary>
+	private const int MaxVoidLookups = 2;
+
+	/// <summary>
+	/// Maximum number of MX or PTR names processed by a single "mx" or "ptr" mechanism (RFC 7208, section 4.6.4)
+	/// </summary>
+	private const int MaxNamesPerMechanism = 10;
+
+	/// <summary>
 	/// RFC 7208 (SPF) check_host() function
 	/// Authenticates remote SMTP server.
 	/// </summary>
 	/// <param name="ipAddress">IP address of the remote SMTP server</param>
 	/// <param name="domain">Email sender domain</param>
 	/// <returns>SPF validation result</returns>
-	public static Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain) => CheckHost(ipAddress, domain, 0);
-
-	private static async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain, uint requestsCounter, bool ptrUsed = false)
+	public static async Task<ValidationResult> CheckHost(IPAddress ipAddress, string domain)
 	{
 		if (ipAddress.IsIPv4MappedToIPv6)
 			ipAddress = ipAddress.MapToIPv4();
 
-		var record = await DnsLookup.QueryTxtRecordWithPrefixAsync(domain, "v=spf1 ");
+		try
+		{
+			// One state object is shared by the whole evaluation (including all nested "include" and "redirect" records),
+			// so the lookup limits apply to the evaluation as a whole.
+			return await Evaluate(ipAddress, domain, new EvaluationState());
+		}
+		catch (SpfEvaluationException e)
+		{
+			return e.Result;
+		}
+		catch (ArgumentException)
+		{
+			// Invalid domain name in the record
+			return ValidationResult.Permerror;
+		}
+		catch (Exception)
+		{
+			// DNS timeouts and other DNS failures
+			return ValidationResult.Temperror;
+		}
+	}
+
+	private static async Task<ValidationResult> Evaluate(IPAddress ipAddress, string domain, EvaluationState state)
+	{
+		var record = await GetSpfRecord(domain);
 
 		if (record == null)
 			return ValidationResult.None;
 
-		record = record[7..].TrimEnd();
-		var sp = record.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-		uint requestsMade = requestsCounter;
-		bool ptrWasUsed = ptrUsed;
+		string? redirect = null;
 
-		foreach (var s in sp)
+		foreach (var term in record[6..].Split(' ', StringSplitOptions.RemoveEmptyEntries))
 		{
-			var qualifier = ValidationResult.Pass;
-			var mechanism = s;
-			string? args = null;
-			byte? cidr = null;
+			var equalsIndex = term.IndexOf('=');
+			var colonIndex = term.IndexOf(':');
+			var slashIndex = term.IndexOf('/');
 
-			switch (s[0])
+			// Modifier (name=value)
+			if (equalsIndex > 0 && (colonIndex == -1 || equalsIndex < colonIndex) && (slashIndex == -1 || equalsIndex < slashIndex))
+			{
+				if (term[..equalsIndex].Equals("redirect", StringComparison.OrdinalIgnoreCase))
+				{
+					if (redirect != null)
+						throw new SpfEvaluationException(ValidationResult.Permerror);
+
+					redirect = term[(equalsIndex + 1)..];
+				}
+
+				// Other modifiers (eg. "exp") are ignored
+				continue;
+			}
+
+			var qualifier = ValidationResult.Pass;
+			var mechanism = term;
+
+			switch (term[0])
 			{
 				case '+':
-					mechanism = s[1..];
+					mechanism = term[1..];
 					break;
 
 				case '-':
 					qualifier = ValidationResult.Fail;
-					mechanism = s[1..];
+					mechanism = term[1..];
 					break;
 
 				case '~':
 					qualifier = ValidationResult.Softfail;
-					mechanism = s[1..];
+					mechanism = term[1..];
 					break;
 
 				case '?':
 					qualifier = ValidationResult.Neutral;
-					mechanism = s[1..];
+					mechanism = term[1..];
 					break;
 			}
 
-			if (mechanism == "")
-				continue;
-
-			if (mechanism.Contains('/'))
+			string? cidr = null;
+			slashIndex = mechanism.IndexOf('/');
+			if (slashIndex != -1)
 			{
-				var index = mechanism.IndexOf('/');
-
-				if (mechanism.Length > index && byte.TryParse(mechanism[(index + 1)..], out var cd))
-					cidr = cd;
-
-				mechanism = mechanism[..index];
+				cidr = mechanism[slashIndex..];
+				mechanism = mechanism[..slashIndex];
 			}
 
-			if (mechanism.Contains(':'))
+			string? argument = null;
+			colonIndex = mechanism.IndexOf(':');
+			if (colonIndex != -1)
 			{
-				var index = mechanism.IndexOf(':');
+				argument = mechanism[(colonIndex + 1)..];
+				mechanism = mechanism[..colonIndex];
 
-				if (mechanism.Length > index)
-					args = mechanism[(index + 1)..];
-
-				mechanism = mechanism[..index];
+				if (argument.Length == 0)
+					throw new SpfEvaluationException(ValidationResult.Permerror);
 			}
-			else if (mechanism.Contains('='))
-			{
-				var index = mechanism.IndexOf('=');
-
-				if (mechanism.Length > index)
-					args = mechanism[(index + 1)..];
-
-				mechanism = mechanism[..index];
-			}
-
-			if (mechanism == "")
-				continue;
 
 			switch (mechanism.ToLowerInvariant())
 			{
 				case "all":
 					return qualifier;
 
-				case "a" when ipAddress.AddressFamily == AddressFamily.InterNetwork:
-				case "a" when ipAddress.AddressFamily == AddressFamily.InterNetworkV6:
+				case "include":
+				{
+					if (argument == null)
+						throw new SpfEvaluationException(ValidationResult.Permerror);
+
+					CountDnsLookup(state);
+
+					switch (await Evaluate(ipAddress, argument, state))
 					{
-						if (requestsMade > 10)
-							return ptrWasUsed ? ValidationResult.Fail : ValidationResult.Permerror;
-
-						requestsMade++;
-
-						if (await CheckAddressMatch(ipAddress, domain, args, cidr))
+						case ValidationResult.Pass:
 							return qualifier;
+
+						case ValidationResult.Temperror:
+							return ValidationResult.Temperror;
+
+						case ValidationResult.Permerror:
+						case ValidationResult.None:
+							throw new SpfEvaluationException(ValidationResult.Permerror);
 					}
+
 					break;
+				}
 
 				case "a":
-					return ValidationResult.Permerror;
+				{
+					CountDnsLookup(state);
+					ParseDualCidr(cidr, out var ip4Cidr, out var ip6Cidr);
+
+					if (await MatchesAddressRecords(ipAddress, argument ?? domain, ip4Cidr, ip6Cidr, state, true))
+						return qualifier;
+
+					break;
+				}
 
 				case "mx":
+				{
+					CountDnsLookup(state);
+					ParseDualCidr(cidr, out var ip4Cidr, out var ip6Cidr);
+
+					var response = await Query(argument ?? domain, QueryType.MX);
+					var exchanges = response.Answers.OfType<MxRecord>().Select(mx => mx.Exchange.Value.TrimEnd('.')).Where(mx => mx.Length > 0).ToList();
+
+					if (exchanges.Count == 0)
 					{
-						if (requestsMade > 10)
-							return ptrWasUsed ? ValidationResult.Fail : ValidationResult.Permerror;
-
-						requestsMade++;
-
-						var mxQuery = await DnsLookup.LookupClient.QueryAsync(args ?? domain, QueryType.MX);
-
-						foreach (var q in mxQuery.Answers)
-						{
-							if (q is not MxRecord ar)
-								continue;
-
-							if (requestsMade > 10)
-								return ValidationResult.Permerror;
-
-							requestsMade++;
-
-							if (await CheckAddressMatch(ipAddress, ar.Exchange, null, cidr))
-								return qualifier;
-						}
-					}
-					break;
-
-				case "ptr":
-					{
-						if (requestsMade > 10)
-							return ptrWasUsed ? ValidationResult.Fail : ValidationResult.Permerror;
-
-						requestsMade++;
-
-						var ptrQuery = await DnsLookup.LookupClient.QueryReverseAsync(ipAddress);
-
-						foreach (var q in ptrQuery.Answers)
-						{
-							if (q is not PtrRecord ar)
-								continue;
-
-							if (!ar.PtrDomainName.Value.Equals(domain, StringComparison.OrdinalIgnoreCase) && !ar.PtrDomainName.Value.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
-								continue;
-
-							if (requestsMade > 10)
-								return ValidationResult.Fail;
-
-							requestsMade++;
-							ptrWasUsed = true;
-
-							if (await CheckAddressMatch(ipAddress, ar.DomainName, null, null))
-								return qualifier;
-						}
-					}
-					break;
-
-				case "ip4" when args != null && ipAddress.AddressFamily == AddressFamily.InterNetwork && IPAddress.TryParse(args, out var ipParsed):
-					{
-						if (cidr is null or > 32)
-							cidr = 32;
-
-						if (CheckCIDR(ipAddress, ipParsed, cidr.Value))
-							return qualifier;
-					}
-					break;
-
-				case "ip6" when args != null && ipAddress.AddressFamily == AddressFamily.InterNetworkV6 && IPAddress.TryParse(args, out var ipParsed):
-					{
-						if (cidr is null or > 128)
-							cidr = 128;
-
-						if (CheckCIDR(ipAddress, ipParsed, cidr.Value))
-							return qualifier;
-					}
-					break;
-
-				case "redirect" when args != null:
-					{
-						if (sp.Any(c => c.Equals("all", StringComparison.OrdinalIgnoreCase) || (c.Length == 4 && c.EndsWith("all", StringComparison.OrdinalIgnoreCase))))
-							continue;
-
-						if (requestsMade > 10)
-							return ValidationResult.Permerror;
-
-						requestsMade++;
-
-						var check = await CheckHost(ipAddress, args, requestsMade, ptrWasUsed);
-						return check == ValidationResult.None ? ValidationResult.Permerror : check;
-					}
-
-				case "include" when args != null:
-					{
-						if (requestsMade > 10)
-							return ValidationResult.Permerror;
-
-						requestsMade++;
-
-						switch (await CheckHost(ipAddress, args, requestsMade, ptrWasUsed))
-						{
-							case ValidationResult.Pass:
-								return qualifier;
-
-							case ValidationResult.Temperror:
-								return ValidationResult.Temperror;
-
-							case ValidationResult.Permerror:
-							case ValidationResult.None:
-								return ValidationResult.Permerror;
-						}
+						CountVoidLookup(state);
 						break;
 					}
+
+					if (exchanges.Count > MaxNamesPerMechanism)
+						throw new SpfEvaluationException(ValidationResult.Permerror);
+
+					foreach (var exchange in exchanges)
+					{
+						if (await MatchesAddressRecords(ipAddress, exchange, ip4Cidr, ip6Cidr, state, false))
+							return qualifier;
+					}
+
+					break;
+				}
+
+				case "ptr":
+				{
+					CountDnsLookup(state);
+
+					if (cidr != null)
+						throw new SpfEvaluationException(ValidationResult.Permerror);
+
+					if (await MatchesPtr(ipAddress, argument ?? domain, state))
+						return qualifier;
+
+					break;
+				}
+
+				case "ip4":
+				{
+					if (argument == null || !IPAddress.TryParse(argument, out var network) || network.AddressFamily != AddressFamily.InterNetwork)
+						throw new SpfEvaluationException(ValidationResult.Permerror);
+
+					var prefix = ParsePrefix(cidr, 32);
+
+					if (ipAddress.AddressFamily == AddressFamily.InterNetwork && CheckCIDR(ipAddress, network, prefix))
+						return qualifier;
+
+					break;
+				}
+
+				case "ip6":
+				{
+					if (argument == null || !IPAddress.TryParse(argument, out var network) || network.AddressFamily != AddressFamily.InterNetworkV6)
+						throw new SpfEvaluationException(ValidationResult.Permerror);
+
+					var prefix = ParsePrefix(cidr, 128);
+
+					if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6 && CheckCIDR(ipAddress, network, prefix))
+						return qualifier;
+
+					break;
+				}
+
+				// "exists" (which requires macros support) and unknown mechanisms are ignored
 			}
+		}
+
+		// "redirect" is evaluated only if no mechanism matched (RFC 7208, section 6.1), regardless of its position in the record
+		if (redirect != null)
+		{
+			if (redirect.Length == 0)
+				throw new SpfEvaluationException(ValidationResult.Permerror);
+
+			CountDnsLookup(state);
+
+			var result = await Evaluate(ipAddress, redirect, state);
+			return result == ValidationResult.None ? ValidationResult.Permerror : result;
 		}
 
 		return ValidationResult.Neutral;
 	}
 
-	private static async Task<bool> CheckAddressMatch(IPAddress ipAddress, string domain, string? args, int? cidr)
+	/// <summary>
+	/// Returns the SPF record of the domain, null if the domain doesn't have one.
+	/// </summary>
+	private static async Task<string?> GetSpfRecord(string domain)
 	{
-		var aQuery = await DnsLookup.LookupClient.QueryAsync(args ?? domain, ipAddress.AddressFamily == AddressFamily.InterNetwork ? QueryType.A : QueryType.AAAA);
+		var response = await Query(domain, QueryType.TXT);
+		string? record = null;
 
-		if (aQuery.Answers.Count == 0)
-			return false;
-
-		if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
+		foreach (var txt in response.Answers.OfType<TxtRecord>())
 		{
-			if (cidr is null or > 32)
-				cidr = 32;
+			var text = string.Concat(txt.Text);
 
-			foreach (var q in aQuery.Answers)
+			if (!text.Equals("v=spf1", StringComparison.OrdinalIgnoreCase) && !text.StartsWith("v=spf1 ", StringComparison.OrdinalIgnoreCase))
+				continue;
+
+			// RFC 7208, section 4.5: multiple SPF records result in a permerror
+			if (record != null)
+				throw new SpfEvaluationException(ValidationResult.Permerror);
+
+			record = text;
+		}
+
+		return record;
+	}
+
+	/// <summary>
+	/// Checks if any A/AAAA record of the domain matches the IP address
+	/// </summary>
+	private static async Task<bool> MatchesAddressRecords(IPAddress ipAddress, string domain, int ip4Cidr, int ip6Cidr, EvaluationState state, bool countVoidLookup)
+	{
+		var isIpv4 = ipAddress.AddressFamily == AddressFamily.InterNetwork;
+		var response = await Query(domain, isIpv4 ? QueryType.A : QueryType.AAAA);
+		var addresses = response.Answers.OfType<AddressRecord>().Select(a => a.Address).Where(a => a.AddressFamily == ipAddress.AddressFamily).ToList();
+
+		if (addresses.Count == 0)
+		{
+			if (countVoidLookup)
+				CountVoidLookup(state);
+
+			return false;
+		}
+
+		var prefix = isIpv4 ? ip4Cidr : ip6Cidr;
+		return addresses.Any(address => CheckCIDR(address, ipAddress, prefix));
+	}
+
+	/// <summary>
+	/// "ptr" mechanism (RFC 7208, section 5.5)
+	/// </summary>
+	private static async Task<bool> MatchesPtr(IPAddress ipAddress, string targetDomain, EvaluationState state)
+	{
+		List<string> names;
+
+		try
+		{
+			var response = await DnsLookup.LookupClient.QueryReverseAsync(ipAddress);
+			names = response.Answers.OfType<PtrRecord>().Select(ptr => ptr.PtrDomainName.Value.TrimEnd('.')).Where(name => name.Length > 0).Take(MaxNamesPerMechanism).ToList();
+		}
+		catch (Exception e) when (e is not SpfEvaluationException)
+		{
+			// A DNS error during the PTR lookup means the mechanism doesn't match
+			return false;
+		}
+
+		if (names.Count == 0)
+		{
+			CountVoidLookup(state);
+			return false;
+		}
+
+		targetDomain = targetDomain.TrimEnd('.');
+
+		foreach (var name in names)
+		{
+			if (!name.Equals(targetDomain, StringComparison.OrdinalIgnoreCase) && !name.EndsWith("." + targetDomain, StringComparison.OrdinalIgnoreCase))
+				continue;
+
+			try
 			{
-				if (q is not ARecord ar)
-					continue;
-
-				if (CheckCIDR(ar.Address, ipAddress, (byte)cidr))
+				// The name is validated only if it resolves back to the IP address
+				if (await MatchesAddressRecords(ipAddress, name, 32, 128, state, false))
 					return true;
 			}
-		}
-		else
-		{
-			if (cidr is null or > 128)
-				cidr = 128;
-
-			foreach (var q in aQuery.Answers)
+			catch (Exception e) when (e is not SpfEvaluationException)
 			{
-				if (q is not AaaaRecord ar)
-					continue;
-
-				if (CheckCIDR(ar.Address, ipAddress, (byte)cidr))
-					return true;
+				// A DNS error during the address lookup means this name is skipped
 			}
 		}
 
 		return false;
+	}
+
+	/// <summary>
+	/// Performs a DNS query. Errors other than "name does not exist" result in a temperror (RFC 7208, section 4.4).
+	/// </summary>
+	private static async Task<IDnsQueryResponse> Query(string name, QueryType type)
+	{
+		var response = await DnsLookup.LookupClient.QueryAsync(name, type);
+
+		if (response.HasError && response.Header.ResponseCode != DnsHeaderResponseCode.NotExistentDomain)
+			throw new SpfEvaluationException(ValidationResult.Temperror);
+
+		return response;
+	}
+
+	private static void CountDnsLookup(EvaluationState state)
+	{
+		if (++state.DnsLookups > MaxDnsLookups)
+			throw new SpfEvaluationException(ValidationResult.Permerror);
+	}
+
+	private static void CountVoidLookup(EvaluationState state)
+	{
+		if (++state.VoidLookups > MaxVoidLookups)
+			throw new SpfEvaluationException(ValidationResult.Permerror);
+	}
+
+	/// <summary>
+	/// Parses "/prefix" CIDR length.
+	/// </summary>
+	private static int ParsePrefix(string? cidr, int max)
+	{
+		if (cidr == null)
+			return max;
+
+		if (cidr.Length < 2 || !int.TryParse(cidr.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out var prefix) || prefix > max)
+			throw new SpfEvaluationException(ValidationResult.Permerror);
+
+		return prefix;
+	}
+
+	/// <summary>
+	/// Parses dual CIDR length ("/ip4-prefix", "//ip6-prefix" or "/ip4-prefix//ip6-prefix")
+	/// </summary>
+	private static void ParseDualCidr(string? cidr, out int ip4Cidr, out int ip6Cidr)
+	{
+		ip4Cidr = 32;
+		ip6Cidr = 128;
+
+		if (cidr == null)
+			return;
+
+		var dualIndex = cidr.IndexOf("//", StringComparison.Ordinal);
+
+		if (dualIndex == -1)
+			ip4Cidr = ParsePrefix(cidr, 32);
+		else
+		{
+			if (dualIndex > 0)
+				ip4Cidr = ParsePrefix(cidr[..dualIndex], 32);
+
+			ip6Cidr = ParsePrefix(cidr[(dualIndex + 1)..], 128);
+		}
 	}
 
 	/// <summary>
@@ -328,13 +468,32 @@ public static class SpfValidator
 					continue;
 
 				default:
-					{
-						var m = (byte)(0xFF << (8 - diff));
-						return (aBytes[i] & m) == (bBytes[i] & m);
-					}
+				{
+					var m = (byte)(0xFF << (8 - diff));
+					return (aBytes[i] & m) == (bBytes[i] & m);
+				}
 			}
 		}
 
 		return true;
+	}
+
+	/// <summary>
+	/// State shared by the whole SPF evaluation
+	/// </summary>
+	private sealed class EvaluationState
+	{
+		public int DnsLookups;
+		public int VoidLookups;
+	}
+
+	/// <summary>
+	/// Terminates the evaluation with the specified result
+	/// </summary>
+	private sealed class SpfEvaluationException : Exception
+	{
+		public SpfEvaluationException(ValidationResult result) => Result = result;
+
+		public readonly ValidationResult Result;
 	}
 }

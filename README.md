@@ -19,11 +19,12 @@ This server is only returning all received emails to interface provided by the s
 * RFC 6376 (DomainKeys Identified Mail (DKIM) Signatures)
 * RFC 7208 (Sender Policy Framework)
 * RFC 7372 (Email Authentication Status Codes)
-* RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC))
+* RFC 7489 (Domain-based Message Authentication, Reporting, and Conformance (DMARC)) - optional, using Public Suffix List
 * RFC 8463 (A New Cryptographic Signature Method for DomainKeys Identified Mail (DKIM))
+* RFC 9989 (Domain-Based Message Authentication, Reporting, and Conformance (DMARC)) - default, using DNS Tree Walk
 
 # 3rd party services and libraries usage
-* This library by default downloads Public Suffix List managed by Mozilla Foundation from publicsuffix.org. The list is licensed under Mozilla Public License v. 2.0. The download URL can be changed in the ServerOptions class. If you wish, you can disable automatic download of the list and load the list manually (eg. from a file distributed with your software). The list is NOT downloaded if DMARC is turned off in the server options.
+* If DMARC is configured to use the Public Suffix List (`DmarcOptions.OrganizationalDomainDiscovery = OrganizationalDomainDiscovery.PublicSuffixList`), this library by default downloads Public Suffix List managed by Mozilla Foundation from publicsuffix.org. The list is licensed under Mozilla Public License v. 2.0. The download URL can be changed in the ServerOptions class. If you wish, you can disable automatic download of the list and load the list manually (eg. from a file distributed with your software). The list is NOT downloaded if DMARC is turned off or uses the DNS Tree Walk (default).
 * This library uses [MimeKit](https://github.com/jstedfast/MimeKit) library created by .NET Foundation and Contributors and licensed under [The MIT License](https://raw.githubusercontent.com/jstedfast/MimeKit/master/LICENSE).
 
 # Basic usage
